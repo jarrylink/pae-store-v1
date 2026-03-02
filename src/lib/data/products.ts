@@ -1,0 +1,207 @@
+import { Product } from '@/types';
+
+export const PRODUCTS: Product[] = [
+  {
+    "id": 1,
+    "category": "Kit",
+    "title": "ISUN 1K Solar Kit",
+    "brand": "ISUN",
+    "spec": "1kW Home Kit",
+    "price": 520000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180951/ISUN1K-1_cugiai.jpg",
+    "warranty": "5 years",
+    "installationTime": "2-3 days",
+    "capacity": "1kW",
+    "compatibleWith": [
+      "ISUN Inverters",
+      "Standard Batteries"
+    ],
+    "features": [
+      "Weather Resistant",
+      "Easy Installation",
+      "Monitoring App"
+    ],
+    "inStock": true,
+    "inventory": 15,
+    "systemType": "basic"
+  },
+  {
+    "id": 2,
+    "category": "Accessory",
+    "title": "3 MC4 Connector Set",
+    "brand": "ConnectX",
+    "spec": "MC4 Pairs\nOptional",
+    "price": 5000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180950/MC4_Connector_Set_bzmnt8.jpg",
+    "warranty": "2 years",
+    "installationTime": "Immediate",
+    "capacity": "N/A",
+    "compatibleWith": [
+      "All Solar Panels"
+    ],
+    "features": [
+      "Weatherproof",
+      "Easy Connection",
+      "Durable"
+    ],
+    "inStock": true,
+    "inventory": 50,
+    "systemType": "accessory",
+    "updatedAt": "2026-01-19T11:21:27.992Z"
+  },
+  {
+    "id": 3,
+    "category": "Kit",
+    "title": "Complete Solar Power System",
+    "brand": "FullSys",
+    "spec": "Household complete system",
+    "price": 750000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180950/E35B766U-ksruee-solar-power-system-complete-solar_wter1n.jpg",
+    "warranty": "10 years",
+    "installationTime": "3-5 days",
+    "capacity": "3kW",
+    "compatibleWith": [
+      "FullSys Components"
+    ],
+    "features": [
+      "Complete Home Solution",
+      "Battery Backup",
+      "Professional Installation"
+    ],
+    "inStock": true,
+    "inventory": 8,
+    "systemType": "whole-house"
+  },
+  {
+    "id": 4,
+    "category": "Inverter",
+    "title": "5kVA Solar Inverter",
+    "brand": "GridMate",
+    "spec": "5kVA, Hybrid, MPPT",
+    "price": 420000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180950/Solar-Inverter-5kVA-Inverter-4000W-4kw-5000W-5kw-48V-230VAC-Built-in-Solar-Charge-Controller-MPPT-80A-Parallel-Function-Optional_cjx81k.avif",
+    "warranty": "5 years",
+    "installationTime": "1-2 days",
+    "capacity": "5kVA",
+    "compatibleWith": [
+      "All Solar Panels",
+      "Lithium Batteries"
+    ],
+    "features": [
+      "Hybrid Function",
+      "MPPT Technology",
+      "Parallel Function"
+    ],
+    "inStock": true,
+    "inventory": 12,
+    "systemType": "advanced"
+  },
+  {
+    "id": 5,
+    "category": "Solar Panel",
+    "title": "Mono 330W Panel",
+    "brand": "SunCore",
+    "spec": "330W Mono",
+    "price": 95000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180949/61h-KbSuMgL._AC_SL1500__d8zx2g.jpg",
+    "warranty": "25 years",
+    "installationTime": "1 day",
+    "capacity": "330W",
+    "compatibleWith": [
+      "All Inverters"
+    ],
+    "features": [
+      "High Efficiency",
+      "Durable Frame",
+      "Weather Resistant"
+    ],
+    "inStock": true,
+    "inventory": 30,
+    "systemType": "medium"
+  },
+  {
+    "id": 6,
+    "category": "Inverter",
+    "title": "This is panel",
+    "brand": "Invertech",
+    "spec": "2kVA Hybrid",
+    "price": 210000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180948/M200-48_pt7sc9.jpg",
+    "warranty": "3 years",
+    "installationTime": "1 day",
+    "capacity": "2kVA",
+    "compatibleWith": [
+      "Standard Batteries"
+    ],
+    "features": [
+      "Compact Design",
+      "Efficient Conversion",
+      "Quiet Operation"
+    ],
+    "inStock": true,
+    "inventory": 18,
+    "systemType": "medium",
+    "updatedAt": "2026-02-07T11:40:15.570Z"
+  },
+  {
+    "id": 7,
+    "category": "Battery",
+    "title": "60V 100Ah Li-ion",
+    "brand": "LithPower",
+    "spec": "LFP Battery",
+    "price": 400000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180948/60v100ah-scooter-motocycle-forklift-lithium-battery-lfp-lifepo4-factory_coigod.jpg",
+    "warranty": "5 years",
+    "installationTime": "1 day",
+    "capacity": "6kWh",
+    "compatibleWith": [
+      "All Inverters"
+    ],
+    "features": [
+      "Long Lifespan",
+      "Fast Charging",
+      "Maintenance Free"
+    ],
+    "inStock": true,
+    "inventory": 10,
+    "systemType": "advanced"
+  },
+  {
+    "id": 8,
+    "category": "Battery",
+    "title": "24V 200Ah LiFePO4",
+    "brand": "LithPower Pro",
+    "spec": "24V, 200Ah LFP",
+    "price": 900000,
+    "image": "https://res.cloudinary.com/djkudkxmx/image/upload/v1762180947/LiFePO4-Battery-Solar-Energy-Storage-System-24V-200ah_xpndu5.avif",
+    "warranty": "10 years",
+    "installationTime": "1-2 days",
+    "capacity": "4.8kWh",
+    "compatibleWith": [
+      "24V Systems"
+    ],
+    "features": [
+      "High Capacity",
+      "Long Cycle Life",
+      "Safety Features"
+    ],
+    "inStock": true,
+    "inventory": 20,
+    "systemType": "commercial",
+    "updatedAt": "2026-02-19T15:38:04.389Z"
+  },
+  {
+    "title": "test",
+    "brand": "victron",
+    "category": "Inverter",
+    "price": 5000,
+    "inventory": 5,
+    "warranty": "1 Year Warranty",
+    "spec": "Nice, Affordable",
+    "image": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=800",
+    "inStock": true,
+    "createdAt": "2026-02-07T11:39:15.803Z",
+    "updatedAt": "2026-02-07T11:39:15.803Z",
+    "id": 9
+  }
+];
