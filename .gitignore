@@ -29,3 +29,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+/generated/prisma
+
+.env
