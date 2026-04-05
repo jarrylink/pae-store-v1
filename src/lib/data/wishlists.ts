@@ -40,9 +40,19 @@ export const WISHLISTS: Wishlist[] = [
     "userId": "user-1772001830294-tly6d7e9s",
     "items": [
       {
-        "id": "wl-1772025346872-lxxe46gfq",
-        "productId": 7,
-        "addedAt": "2026-02-25T13:15:46.872Z"
+        "id": "wl-1773067856052-0r17ega3a",
+        "productId": 1,
+        "addedAt": "2026-03-09T14:50:56.052Z"
+      },
+      {
+        "id": "wl-1773067859196-5m0r8lmje",
+        "productId": 6,
+        "addedAt": "2026-03-09T14:50:59.196Z"
+      },
+      {
+        "id": "wl-1773067860863-58fznrhp8",
+        "productId": 5,
+        "addedAt": "2026-03-09T14:51:00.863Z"
       }
     ]
   },
@@ -67,6 +77,91 @@ export const WISHLISTS: Wishlist[] = [
   },
   {
     "userId": "user-1772200023648-zbzvjsegb",
+    "items": []
+  },
+  {
+    "userId": "user-1773071183243-n5yzuxk",
+    "items": []
+  },
+  {
+    "userId": "user-1772627279725-i5seymz",
+    "items": [
+      {
+        "id": "wl-1773167168986-wurhos4lg",
+        "productId": 8,
+        "addedAt": "2026-03-10T18:26:08.986Z"
+      },
+      {
+        "id": "wl-1773167170600-wzbn4sljr",
+        "productId": 7,
+        "addedAt": "2026-03-10T18:26:10.600Z"
+      }
+    ]
+  },
+  {
+    "userId": "user-1773229531941-tw4gnzz",
+    "items": [
+      {
+        "id": "wl-1773640354235-omi33ywjs",
+        "productId": 2,
+        "addedAt": "2026-03-16T05:52:34.235Z"
+      },
+      {
+        "id": "wl-1773646016172-33djwjifl",
+        "productId": 5,
+        "addedAt": "2026-03-16T07:26:56.172Z"
+      },
+      {
+        "id": "wl-1773661729865-q7lvclhkp",
+        "productId": 3,
+        "addedAt": "2026-03-16T11:48:49.865Z"
+      }
+    ]
+  },
+  {
+    "userId": "user-1773231307516-mmlzf9e",
+    "items": [
+      {
+        "id": "wl-1773231331979-zl1tujgr4",
+        "productId": 5,
+        "addedAt": "2026-03-11T12:15:31.979Z"
+      },
+      {
+        "id": "wl-1773231333142-bczqna2gb",
+        "productId": 6,
+        "addedAt": "2026-03-11T12:15:33.143Z"
+      }
+    ]
+  },
+  {
+    "userId": "user-1773285571824-ugcdjsr",
+    "items": [
+      {
+        "id": "wl-1773285580656-uxjrs52s1",
+        "productId": 3,
+        "addedAt": "2026-03-12T03:19:40.656Z"
+      },
+      {
+        "id": "wl-1773285581790-16a20cftd",
+        "productId": 4,
+        "addedAt": "2026-03-12T03:19:41.790Z"
+      }
+    ]
+  },
+  {
+    "userId": "user-1773316750110-7x87anp",
+    "items": []
+  },
+  {
+    "userId": "user-1773681298942-7fmod5u",
+    "items": []
+  },
+  {
+    "userId": "user-1773845484510-bb7tw1z",
+    "items": []
+  },
+  {
+    "userId": "user-1774430478256-88da12e",
     "items": []
   }
 ];

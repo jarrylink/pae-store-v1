@@ -6,9 +6,12 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useCartStore } from '@/lib/stores/cartStore';
 import Link from 'next/link';
 import { formatCurrency } from '@/utils';
+import { Address } from '@/types/auth';
 
 // Form interfaces
 interface CheckoutFormData {
+  selectedAddressId: string | null;
+  useNewAddress: boolean;
   shippingAddress: {
     name: string;
     street: string;
@@ -35,17 +38,21 @@ export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuthStore();
   const { items, installationType, getTotal, clearCart } = useCartStore();
   
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shipping = 15000; // Fixed shipping for now
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + shipping + tax;
-  
+
   // Form state
   const [formData, setFormData] = useState<CheckoutFormData>({
+    selectedAddressId: null,
+    useNewAddress: false,
     shippingAddress: {
       name: user ? `${user.firstName} ${user.lastName}` : '',
       street: '',
@@ -67,21 +74,85 @@ export default function CheckoutPage() {
     paymentMethod: 'bank_transfer'
   });
 
+  // Fetch saved addresses
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      if (!user) return;
+      
+      try {
+        const response = await fetch(`/api/addresses?userId=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSavedAddresses(data);
+          
+          // Auto-select default address if exists
+          const defaultAddress = data.find((addr: Address) => addr.isDefault);
+          if (defaultAddress) {
+            handleAddressSelect(defaultAddress.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching addresses:', error);
+      } finally {
+        setLoadingAddresses(false);
+      }
+    };
+
+    fetchAddresses();
+  }, [user]);
+
   // Redirect if not authenticated or cart is empty
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login?redirect=/checkout');
       return;
     }
-    
+
     if (items.length === 0) {
       router.push('/cart');
     }
   }, [isAuthenticated, items.length, router]);
 
+  const handleAddressSelect = (addressId: string) => {
+    const selected = savedAddresses.find(addr => addr.id === addressId);
+    if (selected) {
+      setFormData(prev => ({
+        ...prev,
+        selectedAddressId: addressId,
+        useNewAddress: false,
+        shippingAddress: {
+          name: selected.name || `${user?.firstName} ${user?.lastName}`,
+          street: selected.street,
+          city: selected.city,
+          state: selected.state,
+          country: selected.country,
+          postalCode: selected.postalCode,
+          phone: selected.phone || user?.phone || ''
+        }
+      }));
+    }
+  };
+
+  const handleUseNewAddress = () => {
+    setFormData(prev => ({
+      ...prev,
+      selectedAddressId: null,
+      useNewAddress: true,
+      shippingAddress: {
+        name: user ? `${user.firstName} ${user.lastName}` : '',
+        street: '',
+        city: '',
+        state: '',
+        country: 'Nigeria',
+        postalCode: '',
+        phone: user?.phone || ''
+      }
+    }));
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({
@@ -124,9 +195,9 @@ export default function CheckoutPage() {
 
     try {
       // Validate form
-      if (!formData.shippingAddress.name.trim() || 
-          !formData.shippingAddress.street.trim() || 
-          !formData.shippingAddress.city.trim() || 
+      if (!formData.shippingAddress.name.trim() ||
+          !formData.shippingAddress.street.trim() ||
+          !formData.shippingAddress.city.trim() ||
           !formData.shippingAddress.phone.trim()) {
         throw new Error('Please fill in all required shipping information');
       }
@@ -141,45 +212,46 @@ export default function CheckoutPage() {
         capacity: item.capacity,
         price: item.price,
         quantity: item.quantity,
-        image: item.image
+        image: item.image,
+        lineItemId: `li_${Date.now()}_${item.id}_${Math.random().toString(36).substr(2, 9)}`
       }));
 
-      const billingAddress = formData.billingAddress.sameAsShipping 
-        ? {
-            ...formData.shippingAddress,
-            type: 'home' as const,
-            id: 1,
-            userId: user!.id,
-            isDefault: true
-          }
+      // Create shipping address object (matches Address type but without id)
+      const shippingAddress = {
+        ...formData.shippingAddress,
+        type: 'home' as const,
+        userId: user!.id,
+        isDefault: false
+      };
+
+      // Create billing address
+      const billingAddress = formData.billingAddress.sameAsShipping
+        ? { ...shippingAddress, isDefault: false }
         : {
             ...formData.billingAddress,
             type: 'home' as const,
-            id: 2,
             userId: user!.id,
-            isDefault: false,
-            phone: formData.shippingAddress.phone
+            phone: formData.shippingAddress.phone,
+            isDefault: false
           };
 
       const orderData = {
         userId: user!.id,
+        customerName: formData.shippingAddress.name,
+        customerPhone: formData.shippingAddress.phone,
+        customerEmail: user!.email,
         items: orderItems,
         subtotal,
         shipping,
         tax,
         total,
-        shippingAddress: {
-          ...formData.shippingAddress,
-          type: 'home' as const,
-          id: 1,
-          userId: user!.id,
-          isDefault: true
-        },
+        shippingAddress,
         billingAddress,
         paymentMethod: formData.paymentMethod,
-        paymentStatus: 'pending' as const,
-        status: 'pending' as const
+        status: 'pending'
       };
+
+      console.log('Submitting order:', orderData);
 
       // Create order
       const response = await fetch('/api/orders', {
@@ -190,15 +262,16 @@ export default function CheckoutPage() {
 
       const result = await response.json();
 
-      if (!result.success) {
+      if (!response.ok) {
         throw new Error(result.error || 'Failed to create order');
       }
 
       // Clear cart and redirect to order confirmation
       clearCart();
-      router.push(`/orders/${result.data.id}?success=true`);
+      router.push(`/orders/${result.id}?success=true`);
 
     } catch (err: any) {
+      console.error('Checkout error:', err);
       setError(err.message || 'An error occurred during checkout');
     } finally {
       setIsSubmitting(false);
@@ -246,96 +319,174 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left column: Shipping & Payment */}
             <div className="lg:col-span-2 space-y-8">
-              {/* Shipping Information */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Shipping Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="shipping.name"
-                      value={formData.shippingAddress.name}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
+              {/* Saved Addresses Section */}
+              {!loadingAddresses && savedAddresses.length > 0 && !formData.useNewAddress && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Select Shipping Address</h2>
+                  <div className="space-y-3 mb-4">
+                    {savedAddresses.map((address) => (
+                      <label
+                        key={address.id}
+                        className={`flex items-start p-4 border rounded-lg cursor-pointer transition-all ${
+                          formData.selectedAddressId === address.id
+                            ? 'border-[#1a2a8a] dark:border-green-400 bg-blue-50 dark:bg-green-900/10'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="selectedAddress"
+                          value={address.id}
+                          checked={formData.selectedAddressId === address.id}
+                          onChange={() => handleAddressSelect(address.id)}
+                          className="mt-1 w-4 h-4 text-[#1a2a8a] dark:text-green-400"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-900 dark:text-white capitalize">
+                              {address.type} {address.isDefault && '(Default)'}
+                            </span>
+                            {address.name && (
+                              <span className="text-sm text-gray-500 dark:text-gray-400">{address.name}</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                            {address.street}<br />
+                            {address.city}, {address.state} {address.postalCode}<br />
+                            {address.country}
+                          </p>
+                          {address.phone && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              Phone: {address.phone}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUseNewAddress}
+                    className="text-[#1a2a8a] dark:text-green-400 text-sm hover:underline"
+                  >
+                    + Use a different address
+                  </button>
+                </div>
+              )}
+
+              {/* New Address Form (shown when no saved addresses or user clicks "Use new address") */}
+              {(savedAddresses.length === 0 || formData.useNewAddress) && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                      {formData.useNewAddress ? 'Enter New Address' : 'Shipping Information'}
+                    </h2>
+                    {formData.useNewAddress && savedAddresses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const defaultAddress = savedAddresses.find(addr => addr.isDefault);
+                          if (defaultAddress) {
+                            handleAddressSelect(defaultAddress.id);
+                          } else {
+                            setFormData(prev => ({ ...prev, useNewAddress: false, selectedAddressId: savedAddresses[0]?.id || null }));
+                          }
+                        }}
+                        className="text-[#1a2a8a] dark:text-green-400 text-sm hover:underline"
+                      >
+                        ← Back to saved addresses
+                      </button>
+                    )}
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Street Address *
-                    </label>
-                    <input
-                      type="text"
-                      name="shipping.street"
-                      value={formData.shippingAddress.street}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="shipping.name"
+                        value={formData.shippingAddress.name}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      City *
-                    </label>
-                    <input
-                      type="text"
-                      name="shipping.city"
-                      value={formData.shippingAddress.city}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Street Address *
+                      </label>
+                      <input
+                        type="text"
+                        name="shipping.street"
+                        value={formData.shippingAddress.street}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      State *
-                    </label>
-                    <input
-                      type="text"
-                      name="shipping.state"
-                      value={formData.shippingAddress.state}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        City *
+                      </label>
+                      <input
+                        type="text"
+                        name="shipping.city"
+                        value={formData.shippingAddress.city}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Postal Code *
-                    </label>
-                    <input
-                      type="text"
-                      name="shipping.postalCode"
-                      value={formData.shippingAddress.postalCode}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        State *
+                      </label>
+                      <input
+                        type="text"
+                        name="shipping.state"
+                        value={formData.shippingAddress.state}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      name="shipping.phone"
-                      value={formData.shippingAddress.phone}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                      placeholder="+234 800 000 0000"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Postal Code *
+                      </label>
+                      <input
+                        type="text"
+                        name="shipping.postalCode"
+                        value={formData.shippingAddress.postalCode}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Phone Number *
+                      </label>
+                      <input
+                        type="tel"
+                        name="shipping.phone"
+                        value={formData.shippingAddress.phone}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="+234 800 000 0000"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Billing Information */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
@@ -468,11 +619,11 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Right column: Order Summary */}
+            {/* Right column: Order Summary (unchanged) */}
             <div className="lg:col-span-1">
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 sticky top-24">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Order Summary</h2>
-                
+
                 {/* Order Items */}
                 <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
                   {items.map((item) => (

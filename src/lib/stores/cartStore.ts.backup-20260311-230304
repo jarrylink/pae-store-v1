@@ -1,0 +1,100 @@
+﻿import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { Product, CartItem } from '@/types';
+
+// Remove hardcoded installation options - they'll come from database
+
+// Define CartState locally
+interface CartState {
+  items: CartItem[];
+  installationType: string; // Will store service ID instead of hardcoded option
+  installationFee: number;
+  installationService: boolean;
+  total: number;
+  addItem: (product: Product) => void;
+  removeItem: (productId: number) => void;
+  updateQuantity: (productId: number, quantity: number) => void;
+  clearCart: () => void;
+  setInstallationType: (serviceId: string) => void;
+  getTotal: () => number;
+  getInstallationFee: () => number;
+}
+
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      installationType: 'none',
+      installationFee: 0,
+      installationService: false,
+      total: 0,
+
+      addItem: (product: Product) => {
+        set((state) => {
+          const existingItem = state.items.find(item => item.id === product.id);
+          
+          if (existingItem) {
+            return {
+              items: state.items.map(item =>
+                item.id === product.id
+                  ? { ...item, quantity: item.quantity + 1 }
+                  : item
+              )
+            };
+          }
+
+          const newItem: CartItem = {
+            id: product.id,
+            title: product.title,
+            brand: product.brand,
+            spec: product.spec,
+            capacity: product.capacity,
+            price: product.price,
+            quantity: 1,
+            image: product.image,
+            warranty: product.warranty
+          };
+
+          return { items: [...state.items, newItem] };
+        });
+      },
+
+      removeItem: (productId: number) => {
+        set((state) => ({
+          items: state.items.filter(item => item.id !== productId)
+        }));
+      },
+
+      updateQuantity: (productId: number, quantity: number) => {
+        set((state) => ({
+          items: state.items.map(item =>
+            item.id === productId ? { ...item, quantity } : item
+          )
+        }));
+      },
+
+      clearCart: () => {
+        set({ items: [], installationType: 'none', installationFee: 0, installationService: false });
+      },
+
+      setInstallationType: (serviceId: string) => {
+        set({ installationType: serviceId });
+        // Fee will be calculated based on selected service from DB
+      },
+
+      getTotal: () => {
+        const state = get();
+        const itemsTotal = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        return itemsTotal + state.installationFee;
+      },
+
+      getInstallationFee: () => {
+        return get().installationFee;
+      }
+    }),
+    {
+      name: 'cart-storage',
+    }
+  )
+);
+

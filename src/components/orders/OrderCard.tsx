@@ -16,7 +16,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+      pending: 'bg-red-400 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
       confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
       shipped: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
       delivered: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
@@ -54,6 +54,18 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
     }
   };
 
+  const handleMakePayment = () => {
+    // Redirect to payment page with order ID
+    window.location.href = `/checkout?orderId=${order.id}`;
+  };
+
+  const handleWhatsAppChat = () => {
+    // Format message with order details
+    const message = `Hello Power Afric Team, I would like to discuss my order #${order.orderNumber || order.id} (Total: ₦${order.total.toLocaleString()}).`;
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/2348000000000?text=${encodedMessage}`, '_blank');
+  };
+
   const statusOptions: Array<{ value: Order['status']; label: string; color: string }> = [
     { value: 'pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
     { value: 'confirmed', label: 'Confirmed', color: 'bg-blue-100 text-blue-800' },
@@ -71,7 +83,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium text-gray-900 dark:text-white">
-                Order #{order.orderNumber}
+                Order #{order.orderNumber || order.id}
               </span>
               <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(order.status)}`}>
                 {getStatusText(order.status)}
@@ -265,6 +277,52 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
             </div>
           </div>
         )}
+
+        {/* Order Actions - Now with 4 buttons */}
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-2">
+            {/* View Details Button */}
+            <button
+              onClick={() => {/* handle view details */}}
+              className="px-4 py-2 text-sm font-medium text-[#1a2a8a] dark:text-green-400 hover:text-[#0f1a66] dark:hover:text-green-300 border border-[#1a2a8a] dark:border-green-400 rounded-lg transition-colors"
+            >
+              View Details
+            </button>
+
+            {/* Download Receipt Button */}
+            <button
+              onClick={() => {/* handle download receipt */}}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
+            >
+              Download Receipt
+            </button>
+
+            {/* Make Payment Button - Only for pending orders */}
+            {order.status === 'pending' && (
+              <button
+                onClick={handleMakePayment}
+                className="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Make Payment
+              </button>
+            )}
+
+            {/* Talk to Agent Button - WhatsApp */}
+            <button
+              onClick={handleWhatsAppChat}
+              className="px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.121 1.521 5.861L.53 23.22c-.092.361.222.675.583.583l5.36-1.002C8.08 23.657 9.994 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.935 0-3.78-.525-5.36-1.44l-3.84.72.72-3.84C2.525 15.78 2 13.935 2 12 2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/>
+              </svg>
+              Talk to Agent
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

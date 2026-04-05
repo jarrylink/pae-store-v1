@@ -1,40 +1,17 @@
-﻿import { User } from '@/lib/data/users';
-import fs from 'fs/promises';
-import path from 'path';
-
-const USERS_FILE_PATH = path.join(process.cwd(), 'src/lib/data/users.json');
+﻿import sql from '@/lib/neon-client';
+import { User } from '@/types/auth';
 
 export async function getUsers(): Promise<User[]> {
-  try {
-    const data = await fs.readFile(USERS_FILE_PATH, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading users file:', error);
-    return [];
-  }
-}
-
-export async function saveUsers(users: User[]): Promise<void> {
-  const content = JSON.stringify(users, null, 2);
-  await fs.writeFile(USERS_FILE_PATH, content, 'utf-8');
+  const result = await sql`SELECT * FROM "User"`;
+  return result as User[];
 }
 
 export async function findUserByEmail(email: string): Promise<User | undefined> {
-  const users = await getUsers();
-  return users.find(u => u.email.toLowerCase() === email.toLowerCase());
-}
-
-export async function findUserById(id: string): Promise<User | undefined> {
-  const users = await getUsers();
-  return users.find(u => u.id === id);
+  const users = await sql`SELECT * FROM "User" WHERE email = ${email} LIMIT 1`;
+  return users[0] as User | undefined;
 }
 
 export async function verifyUserCredentials(email: string, password: string): Promise<User | null> {
-  const users = await getUsers();
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (user && user.password === password && user.isActive) {
-    return user;
-  }
-  return null;
+  const users = await sql`SELECT * FROM "User" WHERE email = ${email} AND password = ${password} AND "isActive" = true LIMIT 1`;
+  return users[0] as User | null;
 }
-

@@ -1,0 +1,311 @@
+﻿import { neon } from '@neondatabase/serverless';
+import { Order } from '@/types/auth';
+
+// Create SQL client with timeout options
+const sql = neon(process.env.DATABASE_URL!, {
+  fetchOptions: {
+    timeout: 30000, // 30 seconds for cold starts
+  }
+});
+
+export interface OrderFilters {
+  userId?: string;
+  status?: string;
+  limit?: number;
+  orderNumber?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+}
+
+export interface OrdersResponse {
+  success: boolean;
+  data: Order[];
+  total: number;
+  error?: string;
+}
+
+// Generate unique order number
+export function generateOrderNumber(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `PA-${year}${month}${day}-${random}`;
+}
+
+export class OrderService {
+  
+  // Helper to handle retries on timeout
+  private async executeWithRetry<T>(queryFn: () => Promise<T>, retries = 2): Promise<T> {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await queryFn();
+      } catch (error: any) {
+        if (error?.code === 'UND_ERR_CONNECT_TIMEOUT' && i < retries - 1) {
+          console.log(`Connection timeout, retrying... (${i + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error('Max retries exceeded');
+  }
+
+  // Get orders with filters
+  async getOrders(filters: OrderFilters = {}): Promise<OrdersResponse> {
+    try {
+      const query = this.executeWithRetry(async () => {
+        let baseQuery = 'SELECT * FROM "Order"';
+        const conditions: string[] = [];
+        const values: any[] = [];
+        let paramIndex = 1;
+
+        if (filters.userId) {
+          conditions.push(`"userId" = $${paramIndex++}`);
+          values.push(filters.userId);
+        }
+        if (filters.status) {
+          conditions.push(`status = $${paramIndex++}`);
+          values.push(filters.status);
+        }
+        if (filters.orderNumber) {
+          conditions.push(`"orderNumber" = $${paramIndex++}`);
+          values.push(filters.orderNumber);
+        }
+        if (filters.customerEmail) {
+          conditions.push(`"customerEmail" = $${paramIndex++}`);
+          values.push(filters.customerEmail);
+        }
+        if (filters.customerPhone) {
+          conditions.push(`"customerPhone" = $${paramIndex++}`);
+          values.push(filters.customerPhone);
+        }
+
+        if (conditions.length > 0) {
+          baseQuery += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        baseQuery += ' ORDER BY "createdAt" DESC';
+
+        if (filters.limit) {
+          baseQuery += ` LIMIT $${paramIndex++}`;
+          values.push(filters.limit);
+        }
+
+        return await sql(baseQuery, values);
+      });
+
+      const orders = await query;
+
+      // Get total count
+      const countResult = await this.executeWithRetry(async () => {
+        let countQuery = 'SELECT COUNT(*) FROM "Order"';
+        if (filters.userId || filters.status || filters.customerEmail || filters.customerPhone) {
+          const countConditions: string[] = [];
+          if (filters.userId) countConditions.push(`"userId" = '${filters.userId}'`);
+          if (filters.status) countConditions.push(`status = '${filters.status}'`);
+          if (filters.customerEmail) countConditions.push(`"customerEmail" = '${filters.customerEmail}'`);
+          if (filters.customerPhone) countConditions.push(`"customerPhone" = '${filters.customerPhone}'`);
+          countQuery += ' WHERE ' + countConditions.join(' AND ');
+        }
+        return await sql(countQuery);
+      });
+
+      const total = parseInt(countResult[0].count);
+
+      return {
+        success: true,
+        data: orders as Order[],
+        total
+      };
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        error: 'Failed to fetch orders'
+      };
+    }
+  }
+
+  // Get single order by ID
+  async getOrderById(id: number): Promise<Order | null> {
+    try {
+      const orders = await this.executeWithRetry(
+        () => sql('SELECT * FROM "Order" WHERE id = $1', [id])
+      );
+      return orders[0] as Order || null;
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      return null;
+    }
+  }
+
+  // Create new order with customer data (denormalized)
+  async createOrder(orderData: any): Promise<Order | null> {
+    try {
+      // Generate order number
+      const orderNumber = generateOrderNumber();
+
+      // Get customer information from the request
+      // This should come from the checkout form/authenticated user
+      const customerName = orderData.customerName || 
+                          orderData.shippingAddress?.name || 
+                          'Walk-in Customer';
+      
+      const customerPhone = orderData.customerPhone || 
+                           orderData.shippingAddress?.phone || 
+                           'N/A';
+      
+      const customerEmail = orderData.customerEmail || 
+                           orderData.userEmail || 
+                           '';
+
+      // Insert order with denormalized customer data
+      const query = `
+        INSERT INTO "Order" (
+          "userId", "orderNumber", items, subtotal, shipping, tax, total,
+          status, "shippingAddress", "billingAddress", "paymentMethod",
+          "paymentStatus", notes, "createdAt", "updatedAt",
+          "customerName", "customerPhone", "customerEmail"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        RETURNING id
+      `;
+
+      const now = new Date().toISOString();
+      const values = [
+        orderData.userId || null, // Keep userId for relation, but don't rely on it
+        orderNumber,
+        JSON.stringify(orderData.items),
+        orderData.subtotal || 0,
+        orderData.shipping || 0,
+        orderData.tax || 0,
+        orderData.total || 0,
+        orderData.status || 'pending',
+        orderData.shippingAddress ? JSON.stringify(orderData.shippingAddress) : null,
+        orderData.billingAddress ? JSON.stringify(orderData.billingAddress) : null,
+        orderData.paymentMethod || 'pending',
+        'pending',
+        orderData.notes || '',
+        now,
+        now,
+        customerName,
+        customerPhone,
+        customerEmail
+      ];
+
+      const result = await this.executeWithRetry(() => sql(query, values));
+      const newOrderId = result[0].id;
+
+      return await this.getOrderById(newOrderId);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      return null;
+    }
+  }
+
+  // Update order status
+  async updateOrderStatus(orderId: number, status: string, notes?: string): Promise<Order | null> {
+    try {
+      const orders = await this.executeWithRetry(() => sql(
+        `UPDATE "Order" 
+         SET status = $1, notes = COALESCE($2, notes), "updatedAt" = $3
+         WHERE id = $4
+         RETURNING *`,
+        [status, notes, new Date().toISOString(), orderId]
+      ));
+      
+      return orders[0] as Order || null;
+    } catch (error) {
+      console.error('Error updating order:', error);
+      return null;
+    }
+  }
+
+  // Get orders by customer email (for guest checkout lookups)
+  async getOrdersByEmail(email: string): Promise<Order[]> {
+    try {
+      const orders = await this.executeWithRetry(
+        () => sql('SELECT * FROM "Order" WHERE "customerEmail" = $1 ORDER BY "createdAt" DESC', [email])
+      );
+      return orders as Order[];
+    } catch (error) {
+      console.error('Error fetching orders by email:', error);
+      return [];
+    }
+  }
+
+  // Get orders by customer phone
+  async getOrdersByPhone(phone: string): Promise<Order[]> {
+    try {
+      const orders = await this.executeWithRetry(
+        () => sql('SELECT * FROM "Order" WHERE "customerPhone" = $1 ORDER BY "createdAt" DESC', [phone])
+      );
+      return orders as Order[];
+    } catch (error) {
+      console.error('Error fetching orders by phone:', error);
+      return [];
+    }
+  }
+
+  // Migrate existing orders to have customer data from users table
+  async migrateExistingOrders(): Promise<void> {
+    try {
+      // Get all orders without customer data
+      const orders = await this.executeWithRetry(
+        () => sql('SELECT * FROM "Order" WHERE "customerName" IS NULL OR "customerName" = \'\'')
+      );
+      
+      for (const order of orders) {
+        let customerName = '';
+        let customerPhone = '';
+        let customerEmail = '';
+
+        // If order has userId, try to get from users table
+        if (order.userId) {
+          const users = await this.executeWithRetry(
+            () => sql('SELECT "firstName", "lastName", email, phone FROM "User" WHERE id = $1', [order.userId])
+          );
+          if (users.length > 0) {
+            const user = users[0];
+            customerName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+            customerPhone = user.phone || '';
+            customerEmail = user.email || '';
+          }
+        }
+
+        // Fallback to shipping address
+        if (!customerName && order.shippingAddress) {
+          const address = typeof order.shippingAddress === 'string' 
+            ? JSON.parse(order.shippingAddress) 
+            : order.shippingAddress;
+          customerName = address.name || '';
+          customerPhone = address.phone || '';
+          customerEmail = address.email || '';
+        }
+
+        // Update the order with the found data
+        await this.executeWithRetry(() => sql(
+          `UPDATE "Order" 
+           SET "customerName" = $1, "customerPhone" = $2, "customerEmail" = $3 
+           WHERE id = $4`,
+          [
+            customerName || 'Customer', 
+            customerPhone || 'N/A', 
+            customerEmail || '', 
+            order.id
+          ]
+        ));
+      }
+      
+      console.log(`✅ Migrated ${orders.length} existing orders with customer data`);
+    } catch (error) {
+      console.error('Error migrating orders:', error);
+    }
+  }
+}
+
+export const orderService = new OrderService();

@@ -1,0 +1,188 @@
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { neon } from '@neondatabase/serverless';
+
+const sql = neon(process.env.DATABASE_URL!);
+
+// GET /api/admin/orders - Fetch all orders with details
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const includeDetails = searchParams.get('details') === 'true';
+
+    if (id) {
+      // Single order with full details
+      const orders = await sql`SELECT * FROM "Order" WHERE id = ${id}`;
+      
+      if (orders.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: 'Order not found'
+        }, { status: 404 });
+      }
+
+      let order = orders[0];
+
+      if (includeDetails) {
+        // Fetch assignments with user details from User table
+        const assignments = await sql`
+          SELECT 
+            a.*, 
+            u.name as "userName", 
+            u.role as "userRole", 
+            u.phone as "userPhone",
+            u.email as "userEmail"
+          FROM "OrderAssignment" a
+          LEFT JOIN "User" u ON a."userId" = u.id
+          WHERE a."orderId" = ${id}
+          ORDER BY a."assignedAt" DESC
+        `;
+
+        // Fetch notes
+        const notes = await sql`
+          SELECT * FROM "OrderNote"
+          WHERE "orderId" = ${id}
+          ORDER BY "createdAt" DESC
+        `;
+
+        order = {
+          ...order,
+          assignments: assignments,
+          notes: notes
+        };
+      }
+
+      return NextResponse.json({
+        success: true,
+        order: order
+      });
+    }
+
+    // All orders (list view) - with assigned staff info
+    const orders = await sql`
+      SELECT 
+        o.*,
+        u.name as "assignedStaffName",
+        u.role as "assignedStaffRole"
+      FROM "Order" o
+      LEFT JOIN "OrderAssignment" a ON o.id = a."orderId" AND a.status != 'completed'
+      LEFT JOIN "User" u ON a."userId" = u.id
+      ORDER BY o."createdAt" DESC
+    `;
+
+    return NextResponse.json({
+      success: true,
+      orders: orders
+    });
+  } catch (error) {
+    console.error('Admin orders error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch orders'
+    }, { status: 500 });
+  }
+}
+
+// PATCH /api/admin/orders?id=123 - Update order
+export async function PATCH(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const data = await request.json();
+
+    if (!id) {
+      return NextResponse.json({
+        success: false,
+        error: 'Order ID required'
+      }, { status: 400 });
+    }
+
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (data.status) {
+      updates.push(`status = $${paramCount++}`);
+      values.push(data.status);
+    }
+    
+    if (data.trackingNumber !== undefined) {
+      updates.push(`"trackingNumber" = $${paramCount++}`);
+      values.push(data.trackingNumber);
+    }
+    
+    if (data.estimatedDelivery !== undefined) {
+      updates.push(`"estimatedDelivery" = $${paramCount++}`);
+      values.push(data.estimatedDelivery);
+    }
+    
+    if (data.actualDelivery !== undefined) {
+      updates.push(`"actualDelivery" = $${paramCount++}`);
+      values.push(data.actualDelivery);
+    }
+    
+    if (data.paymentStatus !== undefined) {
+      updates.push(`"paymentStatus" = $${paramCount++}`);
+      values.push(data.paymentStatus);
+    }
+
+    updates.push(`"updatedAt" = $${paramCount++}`);
+    values.push(new Date().toISOString());
+    values.push(id);
+
+    const query = `
+      UPDATE "Order"
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await sql(query, values);
+
+    if (result.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Order not found'
+      }, { status: 404 });
+    }
+
+    // Add status change note if status changed
+    if (data.status && data.changedBy) {
+      await sql`
+        INSERT INTO "OrderNote" (
+          id,
+          "orderId",
+          "authorId",
+          "authorName",
+          "authorRole",
+          content,
+          type,
+          "createdAt",
+          "isInternal"
+        ) VALUES (
+          ${`NOTE-${Date.now()}`},
+          ${id},
+          ${data.changedBy.id},
+          ${data.changedBy.name},
+          ${data.changedBy.role},
+          ${`Status changed to: ${data.status}${data.statusNote ? ` - ${data.statusNote}` : ''}`},
+          ${'status_change'},
+          ${new Date().toISOString()},
+          ${false}
+        )
+      `;
+    }
+
+    return NextResponse.json({
+      success: true,
+      order: result[0]
+    });
+  } catch (error) {
+    console.error('Admin update error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update order'
+    }, { status: 500 });
+  }
+}

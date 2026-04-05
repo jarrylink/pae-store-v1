@@ -20,7 +20,7 @@ export const useAuthStore = create<AuthStore>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true,
       error: null,
 
       login: async (data: LoginData) => {
@@ -42,6 +42,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = result.user;
+    console.log('🔐 Auth store - Setting user:', user?.email, 'Role:', user?.role, 'ID:', user?.id);
 
           set({
             user,
@@ -50,7 +51,6 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           localStorage.setItem('pa_user', JSON.stringify(user));
-          localStorage.setItem('pa_token', 'auth-token-' + Date.now());
 
           return { success: true, user };
         } catch (error) {
@@ -79,6 +79,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = result.user;
+    console.log('🔐 Auth store - Setting user:', user?.email, 'Role:', user?.role, 'ID:', user?.id);
 
           set({
             user,
@@ -87,7 +88,6 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           localStorage.setItem('pa_user', JSON.stringify(user));
-          localStorage.setItem('pa_token', 'reg-token-' + Date.now());
 
           return { success: true, user };
         } catch (error) {
@@ -116,6 +116,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = result.user;
+    console.log('🔐 Auth store - Setting user:', user?.email, 'Role:', user?.role, 'ID:', user?.id);
 
           set({
             user,
@@ -124,7 +125,6 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           localStorage.setItem('pa_user', JSON.stringify(user));
-          localStorage.setItem('pa_token', 'google-token-' + Date.now());
 
           return { success: true, user };
         } catch (error) {
@@ -135,7 +135,6 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
-        // Clear wishlist store and remove its persisted data
         useWishlistStore.getState().clearWishlist();
         localStorage.removeItem('wishlist-storage');
 
@@ -147,8 +146,11 @@ export const useAuthStore = create<AuthStore>()(
         });
 
         localStorage.removeItem('pa_user');
-        localStorage.removeItem('pa_token');
         localStorage.removeItem('auth-storage');
+
+        // Clear cookies
+        document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'user_data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 
         if (typeof window !== 'undefined') {
           window.location.href = '/';
@@ -162,7 +164,28 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isLoading = false;
+        }
+      }
     }
   )
 );
+
+// Initialize - check for existing user
+if (typeof window !== 'undefined') {
+  const storedUser = localStorage.getItem('pa_user');
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      useAuthStore.setState({ user, isAuthenticated: true, isLoading: false });
+    } catch (e) {
+      console.error('Error parsing stored user:', e);
+      useAuthStore.setState({ isLoading: false });
+    }
+  } else {
+    useAuthStore.setState({ isLoading: false });
+  }
+}
 

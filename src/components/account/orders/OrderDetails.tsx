@@ -6,48 +6,62 @@ import { Order } from '@/types/auth';
 interface OrderDetailsProps {
   order: Order;
   onBack: () => void;
-  onDownloadReceipt: () => void;
 }
 
-const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onBack, onDownloadReceipt }) => {
+const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onBack }) => {
+  console.log("OrderDetails received:", { 
+    orderId: order.id, 
+    hasShippingAddress: !!order.shippingAddress,
+    shippingAddress: order.shippingAddress 
+  });
+
   const getStatusColor = (status: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
       confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
       shipped: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
       delivered: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
       cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
     };
-    return colors[status as keyof typeof colors] || colors.pending;
+    return colors[status] || colors.pending;
   };
 
   const getStatusProgress = (status: string) => {
-    const steps = {
+    const steps: Record<string, number> = {
       pending: 1,
       confirmed: 2,
       shipped: 3,
       delivered: 4,
       cancelled: 0
     };
-    return steps[status as keyof typeof steps] || 0;
+    return steps[status] || 0;
   };
 
   const formatDate = (date: string | Date): string => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};;
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Order Header with Back Button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <button 
+          <button
             onClick={onBack}
             className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors group"
           >
@@ -62,15 +76,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onBack, onDownloadRe
             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
           </span>
         </div>
-        <button 
-          onClick={onDownloadReceipt}
-          className="bg-[#1a2a8a] hover:bg-[#0f1a66] dark:bg-green-400 dark:hover:bg-green-500 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <span>Download Receipt</span>
-        </button>
       </div>
 
       {/* Order Progress Tracking */}
@@ -127,44 +132,48 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onBack, onDownloadRe
           <div className="bg-white dark:bg-gray-700 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-600">
             <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Order Items</h4>
             <div className="space-y-4">
-              {order.items.map((item: any, index: number) => (
-                <div key={item.id} className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-600 rounded-lg">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-16 h-16 object-cover rounded-lg"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {item.title}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {item.brand} • {item.spec}
-                    </p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Capacity: {item.capacity}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Warranty: {item.warranty}
-                      </span>
+              {order.items.map((item: any, index: number) => {
+                const itemKey = item.lineItemId || `order-${order.id}-product-${item.productId || item.id}-${index}`;
+                return (
+                  <div key={itemKey} className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-600 rounded-lg">
+                    <img
+                      src={item.image || "/placeholder-image.png"}
+                      alt={item.title || "Product image"}
+                      className="w-16 h-16 object-cover rounded-lg"
+                      onError={(e) => { e.currentTarget.src = "/placeholder-image.png"; }}
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {item.title}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {item.brand} • {item.spec}
+                      </p>
+                      <div className="flex items-center space-x-4 mt-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          Capacity: {item.capacity}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          Warranty: {item.warranty}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-4 mt-1">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          Qty: {item.quantity}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {formatCurrency(item.price)} each
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Qty: {item.quantity}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        ₦{item.price.toLocaleString()} each
-                      </span>
+                    <div className="text-right">
+                      <p className="font-bold text-[#1a2a8a] dark:text-green-400">
+                        {formatCurrency(item.price * item.quantity)}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-[#1a2a8a] dark:text-green-400">
-                      ₦{(item.price * item.quantity).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -219,39 +228,49 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onBack, onDownloadRe
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                <span className="text-gray-900 dark:text-white">₦{order.total.toLocaleString()}</span>
+                <span className="text-gray-900 dark:text-white">{formatCurrency(order.subtotal || order.total)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                <span className="text-gray-900 dark:text-white">₦0</span>
+                <span className="text-gray-900 dark:text-white">{formatCurrency(order.shipping || 0)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Tax</span>
-                <span className="text-gray-900 dark:text-white">₦0</span>
+                <span className="text-gray-900 dark:text-white">{formatCurrency(order.tax || 0)}</span>
               </div>
               <div className="border-t border-gray-200 dark:border-gray-600 pt-3">
                 <div className="flex justify-between">
                   <span className="font-semibold text-gray-900 dark:text-white">Total</span>
-                  <span className="font-bold text-[#1a2a8a] dark:text-green-400">₦{order.total.toLocaleString()}</span>
+                  <span className="font-bold text-[#1a2a8a] dark:text-green-400">{formatCurrency(order.total)}</span>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Shipping Information */}
           <div className="bg-white dark:bg-gray-700 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-600">
             <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Shipping Information</h4>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-900 dark:text-white">{order.shippingAddress?.street ?? "N/A"}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {order.shippingAddress?.city ?? ""}, {order.shippingAddress?.state ?? ""} {order.shippingAddress?.postalCode ?? ""}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{order.shippingAddress?.country ?? ""}</p>
-            </div>
+            {order.shippingAddress ? (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-900 dark:text-white font-medium">{order.shippingAddress.name || "Recipient"}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{order.shippingAddress.street}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {[order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.postalCode].filter(Boolean).join(', ')}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{order.shippingAddress.country}</p>
+                {order.shippingAddress.phone && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Phone: {order.shippingAddress.phone}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No shipping address provided with this order</p>
+            )}
           </div>
 
+          {/* Payment Method */}
           <div className="bg-white dark:bg-gray-700 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-600">
             <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Payment Method</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{order.paymentMethod}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{order.paymentMethod || 'Bank Transfer'}</p>
           </div>
         </div>
       </div>
@@ -260,11 +279,3 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, onBack, onDownloadRe
 };
 
 export default OrderDetails;
-
-
-
-
-
-
-
-

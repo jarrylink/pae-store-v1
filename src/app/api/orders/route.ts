@@ -1,56 +1,64 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { Order, OrderItem } from '@/types/auth';
-import { ORDERS } from '@/lib/data/orders';
+import { neon } from '@neondatabase/serverless';
 
-// Helper to save orders to file
-async function saveOrdersToFile(orders: Order[]) {
-  const fs = await import('fs/promises');
-  const path = await import('path');
-
-  const filePath = path.join(process.cwd(), 'src/lib/data/orders.ts');
-  const fileContent = `import { Order } from '@/types/auth';\n\nexport const ORDERS: Order[] = ${JSON.stringify(orders, null, 2)};\n`;
-
-  await fs.writeFile(filePath, fileContent, 'utf-8');
-}
-
-// Generate order number
-function generateOrderNumber(): string {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-  return `PA-\${year}\${month}\${day}-\${random}`;
-}
+const sql = neon(process.env.DATABASE_URL!, {
+  fetchOptions: { timeout: 30000 }
+});
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
-    const status = searchParams.get('status');
+    
+    console.log('🔍 Orders API GET - userId:', userId);
 
-    let filteredOrders = [...ORDERS];
-
-    // Filter by user ID if provided
-    if (userId) {
-      filteredOrders = filteredOrders.filter(order => order.userId === userId);
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    // Filter by status if provided
-    if (status) {
-      filteredOrders = filteredOrders.filter(order => order.status === status);
-    }
-
-    // Sort by latest first
-    filteredOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    return NextResponse.json(filteredOrders);
+    // Query the real database
+    const orders = await sql`
+      SELECT 
+        id, 
+        "userId", 
+        "orderNumber", 
+        items, 
+        subtotal, 
+        shipping, 
+        tax, 
+        total,
+        status, 
+        "paymentMethod", 
+        "paymentStatus",
+        "customerName", 
+        "customerPhone", 
+        "customerEmail",
+        "shippingAddress",
+        "serviceId",
+        "serviceName",
+        "servicePrice",
+        "hasService",
+        "createdAt", 
+        "updatedAt"
+      FROM "Order" 
+      WHERE "userId" = ${userId}
+      ORDER BY "createdAt" DESC
+    `;
+    
+    console.log(`✅ Found ${orders.length} orders for user ${userId}`);
+    
+    // Parse JSON fields
+    const parsedOrders = orders.map(order => ({
+      ...order,
+      items: order.items ? (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) : [],
+      shippingAddress: order.shippingAddress ? (typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress) : null
+    }));
+    
+    return NextResponse.json(parsedOrders);
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch orders' },
-      { status: 500 }
-    );
+    console.error('❌ Error fetching orders:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -58,118 +66,50 @@ export async function POST(request: NextRequest) {
   try {
     const orderData = await request.json();
     
-    // Validate required fields
-    if (!orderData.userId || !orderData.items || orderData.items.length === 0) {
-      return NextResponse.json(
-        { error: 'Missing required fields: userId and items are required' },
-        { status: 400 }
-      );
-    }
-
-    // Generate order ID (auto-increment)
-    const newOrderId = ORDERS.length > 0 ? Math.max(...ORDERS.map(o => o.id)) + 1 : 1;
+    console.log('📝 Creating order for user:', orderData.userId);
     
-    // Generate order number
-    const orderNumber = generateOrderNumber();
-    
-    // Create complete order object
-    const newOrder: Order = {
-      id: newOrderId,
-      userId: orderData.userId,
-      orderNumber,
-      items: orderData.items.map((item: any, index: number) => ({
-        id: index + 1,
-        orderId: newOrderId,
-        productId: item.productId,
-        name: item.name,
-        title: item.title,
-        brand: item.brand,
-        spec: item.spec,
-        capacity: item.capacity,
-        price: item.price,
-        quantity: item.quantity,
-        image: item.image,
-      })),
-      subtotal: orderData.subtotal || 0,
-      shipping: orderData.shipping || 0,
-      tax: orderData.tax || 0,
-      total: orderData.total || 0,
-      status: orderData.status || 'pending',
-      shippingAddress: orderData.shippingAddress || null,
-      billingAddress: orderData.billingAddress || null,
-      paymentMethod: orderData.paymentMethod || 'pending',
-      paymentStatus: 'pending',
-      trackingNumber: undefined,
-      estimatedDelivery: undefined,
-      actualDelivery: undefined,
-      notes: orderData.notes || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const orderNumber = `ORD-${Date.now()}`;
+    const now = new Date().toISOString();
 
-    // Add to orders array
-    const updatedOrders = [...ORDERS, newOrder];
-    
-    // Save to file
-    await saveOrdersToFile(updatedOrders);
+    const result = await sql`
+      INSERT INTO "Order" (
+        "userId", "orderNumber", items, subtotal, shipping, tax, total,
+        status, "paymentMethod", "paymentStatus",
+        "customerName", "customerPhone", "customerEmail",
+        "serviceId", "serviceName", "servicePrice", "hasService",
+        "shippingAddress", "createdAt", "updatedAt"
+      ) VALUES (
+        ${orderData.userId},
+        ${orderNumber},
+        ${JSON.stringify(orderData.items || [])},
+        ${orderData.subtotal || 0},
+        ${orderData.shipping || 0},
+        ${orderData.tax || 0},
+        ${orderData.total || 0},
+        ${orderData.status || 'pending'},
+        ${orderData.paymentMethod || 'bank_transfer'},
+        'pending',
+        ${orderData.customerName || 'Customer'},
+        ${orderData.customerPhone || ''},
+        ${orderData.customerEmail || ''},
+        ${orderData.serviceId || null},
+        ${orderData.serviceName || null},
+        ${orderData.servicePrice || 0},
+        ${orderData.hasService || false},
+        ${orderData.shippingAddress ? JSON.stringify(orderData.shippingAddress) : null},
+        ${now},
+        ${now}
+      ) RETURNING *
+    `;
 
+    const newOrder = result[0];
+    newOrder.items = newOrder.items ? (typeof newOrder.items === 'string' ? JSON.parse(newOrder.items) : newOrder.items) : [];
+    
+    console.log(`✅ Order created: ${newOrder.id}`);
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error) {
-    console.error('Error creating order:', error);
-    return NextResponse.json(
-      { error: 'Failed to create order' },
-      { status: 500 }
-    );
+    console.error('❌ Error creating order:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
-
-export async function PATCH(request: NextRequest) {
-  try {
-    const { orderId, status, notes } = await request.json();
-
-    if (!orderId || !status) {
-      return NextResponse.json(
-        { error: 'Missing required fields: orderId and status are required' },
-        { status: 400 }
-      );
-    }
-
-    const orderIndex = ORDERS.findIndex(order => order.id === orderId);
-    
-    if (orderIndex === -1) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { status: 404 }
-      );
-    }
-
-    // Update order
-    const updatedOrders = [...ORDERS];
-    updatedOrders[orderIndex] = {
-      ...updatedOrders[orderIndex],
-      status,
-      notes: notes || updatedOrders[orderIndex].notes,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // If status is confirmed and was pending, update payment status
-    if (status === 'confirmed' && updatedOrders[orderIndex].status === 'pending') {
-      updatedOrders[orderIndex].paymentStatus = 'paid';
-    }
-
-    // Save to file
-    await saveOrdersToFile(updatedOrders);
-
-    return NextResponse.json(updatedOrders[orderIndex]);
-  } catch (error) {
-    console.error('Error updating order:', error);
-    return NextResponse.json(
-      { error: 'Failed to update order' },
-      { status: 500 }
-    );
-  }
-}
-
-
-
-

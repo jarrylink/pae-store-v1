@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useUserProfileStore } from '@/lib/stores/userStore';
 import { useCartStore } from '@/lib/stores/cartStore';
 import { useWishlistStore } from '@/lib/stores/wishlistStore';
+import { useNotificationStore } from '@/lib/stores/notificationStore';
 import OrdersContent from '@/components/account/orders/OrdersContent';
 import AddressesContent from '@/components/account/addresses/AddressesContent';
 import ProfileContent from '@/components/account/profile/ProfileContent';
@@ -17,10 +18,22 @@ export default function AccountPage() {
   const { user, isAuthenticated } = useAuthStore();
   const { profile, wishlist, orders, addresses, setOrders, removeFromWishlist } = useUserProfileStore();
   const { addItem } = useCartStore();
+  const { addNotification } = useNotificationStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  // Check URL for tab parameter on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') as TabType;
+      if (tabParam && ['profile', 'orders', 'wishlist', 'addresses', 'security', 'payment'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
 
   // Fetch user orders from API on mount and when user changes
   useEffect(() => {
@@ -41,10 +54,6 @@ export default function AccountPage() {
     fetchUserOrders();
   }, [user, setOrders]);
 
-  
-  
-
-  
   const { items: wishlistItems, initializeWishlist, initialized } = useWishlistStore();
 
   // Initialize wishlist when user is available
@@ -56,8 +65,31 @@ export default function AccountPage() {
       });
     }
     return () => { mounted = false; };
-  }, [user, initializeWishlist, initialized]); // Dependencies are stable
-const navigationItems = [
+  }, [user, initializeWishlist, initialized]);
+
+  // Handle profile update
+  const handleUpdateProfile = async (userData: any) => {
+    try {
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, ...userData })
+      });
+      
+      if (response.ok) {
+        const updatedUser = await response.json();
+        // Update the user in auth store if needed
+        addNotification('success', 'Profile updated successfully!');
+      } else {
+        throw new Error('Failed to update profile');
+      }
+    } catch (error) {
+      addNotification('error', 'Failed to update profile');
+      throw error;
+    }
+  };
+
+  const navigationItems = [
     {
       id: 'profile' as TabType,
       label: 'Profile',
@@ -110,7 +142,7 @@ const navigationItems = [
   const renderTabContent = () => {
     switch (activeTab) {
       case 'profile':
-        return <ProfileContent />;
+        return <ProfileContent user={user} onUpdate={handleUpdateProfile} />;
       case 'orders':
         return (
           <OrdersContent
@@ -452,6 +484,3 @@ const navigationItems = [
     </>
   );
 }
-
-
-

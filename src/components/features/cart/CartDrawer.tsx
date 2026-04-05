@@ -1,10 +1,13 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCartStore, INSTALLATION_OPTIONS } from '@/lib/stores/cartStore';
+import { useCartStore } from '@/lib/stores/cartStore';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useServiceStore } from '@/lib/stores/serviceStore';
+import { useNotificationStore } from '@/lib/stores/notificationStore';
 import { formatCurrency } from '@/utils';
+import { Address } from '@/types/auth';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -14,60 +17,192 @@ interface CartDrawerProps {
 const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
+  const { services, fetchServices } = useServiceStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('none');
+  const [serviceQuantity, setServiceQuantity] = useState<number>(0);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+
   const {
     items,
-    installationType,
     removeItem,
     updateQuantity,
     clearCart,
-    setInstallationType,
-    getTotal,
-    getInstallationFee
   } = useCartStore();
 
-  const currentInstallation = (INSTALLATION_OPTIONS as any)[installationType] || INSTALLATION_OPTIONS.none;
+  // Calculate items subtotal
+  const itemsSubtotal = items.reduce((total, item) => {
+    return total + (Number(item.price) * Number(item.quantity));
+  }, 0);
 
-  if (!isOpen) return null;
+  // Get selected service details
+  const selectedService = selectedServiceId !== 'none'
+    ? services.find(s => s.id.toString() === selectedServiceId)
+    : null;
+
+  const servicePrice = selectedService?.price || 0;
+  const serviceTotal = Number(servicePrice) * Number(serviceQuantity);
+
+  // Calculate grand total - items plus service only (NO extra fees)
+  const grandTotal = itemsSubtotal + serviceTotal;
+
+  // Fetch services and addresses on mount
+  useEffect(() => {
+    if (isOpen) {
+      fetchServices();
+      if (user) {
+        fetchAddresses();
+      }
+    }
+  }, [isOpen, user]);
+
+  const fetchAddresses = async () => {
+    if (!user) return;
+    try {
+      const response = await fetch(`/api/addresses?userId=${user.id}`);
+      const data = await response.json();
+      const addresses = Array.isArray(data) ? data : [];
+      setSavedAddresses(addresses);
+
+      const defaultAddr = addresses.find((a: Address) => a.isDefault);
+      if (defaultAddr) {
+        setSelectedAddress(defaultAddr);
+      }
+    } catch (error) {
+      console.error('Error fetching addresses:', error);
+    }
+  };
+
+  // Handle service selection
+  const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newServiceId = e.target.value;
+    setSelectedServiceId(newServiceId);
+
+    if (newServiceId !== 'none') {
+      setServiceQuantity(1);
+    } else {
+      setServiceQuantity(0);
+    }
+  };
+
+  // Update service quantity
+  const updateServiceQuantity = (newQuantity: number) => {
+    if (newQuantity >= 0 && newQuantity <= 10) {
+      setServiceQuantity(newQuantity);
+    }
+  };
 
   const handleCheckout = async () => {
     if (isSubmitting) return;
 
+    // Check authentication first
     if (!isAuthenticated || !user) {
-      alert('Please sign in to checkout');
-      router.push('/login?redirect=cart');
+      useNotificationStore.getState().addNotification('error', 'Please sign in to continue with your purchase');
+      router.push('/login');
       onClose();
       return;
     }
 
-    if (items.length === 0) {
-      alert('Your cart is empty');
+    if (items.length === 0 && serviceQuantity === 0) {
+      useNotificationStore.getState().addNotification('warning', 'Your cart is empty');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const orderData = {
-        userId: user.id,
-        items: items.map(item => ({
+      const customerName = (user.firstName && user.lastName)
+        ? `${user.firstName} ${user.lastName}`
+        : user.firstName || user.lastName || 'Customer';
+
+      const customerPhone = user.phone || '';
+      const customerEmail = user.email || '';
+
+      // Prepare items array with both products and service
+      const orderItems = [
+        ...items.map((item, index) => ({
           productId: item.id,
           name: item.title,
           title: item.title,
-          brand: item.brand,
-          spec: item.spec,
-          capacity: item.capacity,
-          price: item.price,
-          quantity: item.quantity,
+          price: Number(item.price),
+          quantity: Number(item.quantity),
           image: item.image,
-        })),
-        subtotal: items.reduce((total, item) => total + (item.price * item.quantity), 0),
+          lineItemId: `product_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'product'
+        }))
+      ];
+
+      // Add service as a separate line item if selected
+      if (selectedService && serviceQuantity > 0) {
+        orderItems.push({
+          productId: selectedService.id,
+          name: selectedService.name,
+          title: selectedService.name,
+          price: Number(selectedService.price),
+          quantity: serviceQuantity,
+          image: selectedService.image || '',
+          lineItemId: `service_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'service'
+        });
+      }
+
+      // Prepare service data
+      const serviceData = selectedService && serviceQuantity > 0 ? {
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        servicePrice: servicePrice,
+        hasService: true
+      } : {
+        serviceId: null,
+        serviceName: null,
+        servicePrice: 0,
+        hasService: false
+      };
+
+      // Prepare shipping address data
+      const shippingAddressData = selectedAddress ? {
+        id: selectedAddress.id,
+        name: selectedAddress.name || customerName,
+        street: selectedAddress.street,
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        country: selectedAddress.country,
+        postalCode: selectedAddress.postalCode,
+        phone: selectedAddress.phone || customerPhone,
+        type: selectedAddress.type,
+        isDefault: selectedAddress.isDefault
+      } : {
+        name: customerName,
+        street: '',
+        city: '',
+        state: '',
+        country: 'Nigeria',
+        postalCode: '',
+        phone: customerPhone,
+        type: 'home',
+        isDefault: false
+      };
+
+      const orderData = {
+        userId: user.id,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        customerEmail: customerEmail,
+        items: orderItems,
+        subtotal: itemsSubtotal,
         shipping: 0,
         tax: 0,
-        total: getTotal(),
+        total: grandTotal, // This already includes service fee
         status: 'pending',
+        paymentMethod: 'bank_transfer',
         notes: '',
+        ...serviceData,
+        shippingAddress: shippingAddressData
       };
+
+      console.log('Submitting order with data:', JSON.stringify(orderData, null, 2));
+      console.log('Total breakdown:', { itemsSubtotal, servicePrice, serviceTotal, grandTotal });
 
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -75,175 +210,222 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         body: JSON.stringify(orderData),
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create order');
+        console.error('Order creation failed:', responseData);
+        throw new Error(responseData.error || responseData.details || 'Failed to create order');
       }
 
-      const createdOrder = await response.json();
-
-      // Clear the cart after successful order creation
       clearCart();
-
-      // Redirect to orders page to see the newly created order
-      router.push('/orders');
-      onClose();
+      
+      // Show success notification
+      useNotificationStore.getState().addNotification('success', 
+        `? Thank you! Order #${responseData.id} has been placed successfully!\n\nYou can view it in your orders section. Need help? Our team is ready to assist.`
+      );
+      
+      // Store order ID for reference
+      sessionStorage.setItem('lastOrderId', responseData.id);
+      
+      // Redirect to account page with orders tab
+      router.push('/account?tab=orders');
 
     } catch (error) {
       console.error('Checkout error:', error);
-      alert('Failed to create order. Please try again.');
+      useNotificationStore.getState().addNotification('error', 
+        error instanceof Error ? error.message : 'Unable to place order. Please try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div
-        className="flex-1 bg-transparent"
-        onClick={onClose}
-      />
-      <div className="w-96 h-full bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700">
-        <div className="h-full flex flex-col">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your Cart</h3>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={clearCart}
-                title="Clear cart"
-                className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                disabled={items.length === 0}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7m5-4h4m-7 4h10"/>
-                </svg>
-              </button>
-              <button
-                onClick={onClose}
-                title="Close cart"
-                className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-600 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-          </div>
+      <div className="flex-1 bg-transparent" onClick={onClose} />
+      <div className="w-96 h-full bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your Cart</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            {items.length === 0 ? (
-              <div className="text-center py-12">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-                </svg>
-                <p className="mt-4 text-gray-500 dark:text-gray-400">Your cart is empty</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500">Add some products to get started</p>
-              </div>
-            ) : (
-              items.map((item) => (
-                <div key={item.id} className="flex items-start gap-4 p-4 border-b border-gray-100 dark:border-gray-700">
-                  <div className="w-16 h-16 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                    />
+        {/* Cart Items */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {items.length === 0 && serviceQuantity === 0 ? (
+            <div className="text-center py-12">
+              <svg className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              <p className="mt-4 text-gray-500 dark:text-gray-400">Your cart is empty</p>
+            </div>
+          ) : (
+            <>
+              {/* Product Items */}
+              {items.map((item, index) => (
+                <div key={item.id || `product-${index}`} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <img 
+                    src={item.image || '/placeholder-image.png'} 
+                    alt={item.title || 'Product'} 
+                    className="w-16 h-16 object-cover rounded"
+                    onError={(e) => { e.currentTarget.src = '/placeholder-image.png'; }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{item.title}</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(Number(item.price))} each</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded text-xs">
+                        <button
+                          onClick={() => updateQuantity(item.id, Number(item.quantity) - 1)}
+                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          disabled={item.quantity <= 1}
+                        >-</button>
+                        <span className="px-2 py-1 text-gray-900 dark:text-white min-w-[24px] text-center">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.id, Number(item.quantity) + 1)}
+                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        >+</button>
+                      </div>
+                      <button onClick={() => removeItem(item.id)} className="text-red-500 text-xs hover:underline">Remove</button>
+                    </div>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency(Number(item.price) * Number(item.quantity))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Service Item - Shows when service selected */}
+              {selectedService && serviceQuantity > 0 && (
+                <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded flex items-center justify-center text-white">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-gray-900 dark:text-white truncate">{item.title}</h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{item.brand} • {item.spec}</p>
-                    <p className="text-sm font-semibold text-[#1a2a8a] dark:text-green-400 mt-1">
-                      {formatCurrency(item.price)}
-                    </p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded">
+                    <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{selectedService.name}</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(Number(selectedService.price))} each</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded text-xs">
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="px-3 py-1 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          disabled={item.quantity <= 1}
-                        >
-                          -
-                        </button>
-                        <span className="px-3 py-1 text-gray-900 dark:text-white min-w-[40px] text-center">
-                          {item.quantity}
-                        </span>
+                          onClick={() => updateServiceQuantity(serviceQuantity - 1)}
+                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          disabled={serviceQuantity <= 1}
+                        >-</button>
+                        <span className="px-2 py-1 text-gray-900 dark:text-white min-w-[24px] text-center">{serviceQuantity}</span>
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="px-3 py-1 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        >
-                          +
-                        </button>
+                          onClick={() => updateServiceQuantity(serviceQuantity + 1)}
+                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          disabled={serviceQuantity >= 10}
+                        >+</button>
                       </div>
                       <button
-                        onClick={() => removeItem(item.id)}
-                        className="text-sm text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                        onClick={() => {
+                          setSelectedServiceId('none');
+                          setServiceQuantity(0);
+                        }}
+                        className="text-red-500 text-xs hover:underline"
                       >
                         Remove
                       </button>
                     </div>
                   </div>
                   <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(item.price * item.quantity)}
+                    {formatCurrency(serviceTotal)}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              )}
+            </>
+          )}
+        </div>
 
-          {items.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-3">
-              <div className="p-2 bg-blue-50/30 dark:bg-blue-900/5 rounded-lg border border-blue-100/50 dark:border-blue-800/20">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1">
-                    <svg className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
-                    </svg>
-                    <span className="font-medium text-xs text-gray-900 dark:text-white">Installation</span>
-                  </div>
-                </div>
+        {/* Footer - Compact Design */}
+        {items.length > 0 || serviceQuantity > 0 ? (
+          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+            {/* Service and Address in one row */}
+            <div className="flex gap-2 mb-3">
+              <div className="flex-1">
                 <select
-                  value={installationType}
-                  onChange={(e) => setInstallationType(e.target.value as keyof typeof INSTALLATION_OPTIONS)}
-                  className="w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedServiceId}
+                  onChange={handleServiceChange}
+                  className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  {Object.values(INSTALLATION_OPTIONS).map((option) => (
-                    <option key={option.id} value={option.id} className="text-xs">
-                      {option.name} {option.price > 0 ? `(+₦${option.price.toLocaleString()})` : ''}
+                  <option value="none">No Service</option>
+                  {services.filter(s => s.isActive).map(service => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} (+{formatCurrency(Number(service.price))})
                     </option>
                   ))}
                 </select>
               </div>
+              
+              {savedAddresses.length > 0 && (
+                <div className="flex-1">
+                  <select
+                    value={selectedAddress?.id || ''}
+                    onChange={(e) => {
+                      const addr = savedAddresses.find(a => a.id === e.target.value);
+                      setSelectedAddress(addr || null);
+                    }}
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select address</option>
+                    {savedAddresses.map(addr => (
+                      <option key={addr.id} value={addr.id}>
+                        {addr.name || addr.type} - {addr.city}
+                        {addr.isDefault ? ' (Default)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Items Subtotal</span>
-                  <span className="text-sm text-gray-900 dark:text-white">
-                    {formatCurrency(items.reduce((total, item) => total + (item.price * item.quantity), 0))}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mb-3 pt-1.5 border-t border-gray-200 dark:border-gray-700">
-                  <span className="font-semibold text-gray-900 dark:text-white">Total</span>
-                  <span className="font-bold text-lg text-[#1a2a8a] dark:text-green-400">
-                    {formatCurrency(getTotal())}
-                  </span>
-                </div>
+            {/* Address helper for users with no addresses */}
+            {savedAddresses.length === 0 && (
+              <div className="text-xs text-center text-gray-500 bg-gray-50 dark:bg-gray-700 p-2 rounded-lg mb-3">
+                <span>No saved address. </span>
                 <button
-                  onClick={handleCheckout}
-                  disabled={items.length === 0 || isSubmitting}
-                  className="w-full bg-gradient-to-r from-[#1a2a8a] to-[#40b553] hover:opacity-90 text-white px-3 py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all duration-300"
+                  onClick={() => {
+                    onClose();
+                    router.push('/account?tab=addresses');
+                  }}
+                  className="text-[#1a2a8a] dark:text-green-400 hover:underline"
                 >
-                  {isSubmitting ? 'Placing Order...' : 'Proceed to Checkout'}
+                  Add one
                 </button>
               </div>
+            )}
+
+            {/* Total */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+              <span className="font-semibold text-gray-900 dark:text-white">Total:</span>
+              <span className="text-xl font-bold text-[#1a2a8a] dark:text-green-400">
+                {formatCurrency(grandTotal)}
+              </span>
             </div>
-          )}
-        </div>
+
+            {/* Checkout Button */}
+            <button
+              onClick={handleCheckout}
+              disabled={isSubmitting || (items.length === 0 && serviceQuantity === 0)}
+              className="w-full mt-3 bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {isSubmitting ? 'Placing Order...' : 'Place Order'}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 };
 
 export default CartDrawer;
-
-
 

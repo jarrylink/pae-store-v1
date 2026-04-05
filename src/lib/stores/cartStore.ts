@@ -2,27 +2,19 @@
 import { persist } from 'zustand/middleware';
 import { Product, CartItem } from '@/types';
 
-// Define installation options
-export const INSTALLATION_OPTIONS = {
-  none: { id: 'none', name: 'No Installation', price: 0 },
-  standard: { id: 'standard', name: 'Standard Installation', price: 50000 },
-  professional: { id: 'professional', name: 'Professional Installation', price: 100000 },
-} as const;
-
-// Define CartState locally
 interface CartState {
   items: CartItem[];
-  installationType: keyof typeof INSTALLATION_OPTIONS;
+  installationType: string;
   installationFee: number;
   installationService: boolean;
-  total: number;
   addItem: (product: Product) => void;
   removeItem: (productId: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
   clearCart: () => void;
-  setInstallationType: (type: keyof typeof INSTALLATION_OPTIONS) => void;
+  setInstallationType: (serviceId: string) => void;
+  setInstallationFee: (fee: number) => void;
   getTotal: () => number;
-  getInstallationFee: () => number;
+  getItemsSubtotal: () => number;
 }
 
 export const useCartStore = create<CartState>()(
@@ -32,28 +24,37 @@ export const useCartStore = create<CartState>()(
       installationType: 'none',
       installationFee: 0,
       installationService: false,
-      total: 0,
 
       addItem: (product: Product) => {
         set((state) => {
           const existingItem = state.items.find(item => item.id === product.id);
-
+          
           if (existingItem) {
-            // Increase quantity if item exists
-            const updatedItems = state.items.map(item =>
-              item.id === product.id
-                ? { ...item, quantity: item.quantity + 1 }
-                : item
-            );
-            return { items: updatedItems };
-          } else {
-            // Add new item with quantity 1
-            const newItem: CartItem = {
-              ...product,
-              quantity: 1,
+            return {
+              items: state.items.map(item =>
+                item.id === product.id
+                  ? { ...item, quantity: Number(item.quantity) + 1 }
+                  : item
+              )
             };
-            return { items: [...state.items, newItem] };
           }
+
+          const newItem: CartItem = {
+            id: product.id,
+            title: product.title,
+            brand: product.brand,
+            spec: product.spec,
+            capacity: product.capacity,
+            price: Number(product.price),
+            quantity: 1,
+            image: product.image,
+            warranty: product.warranty,
+            category: product.category || '',
+            inStock: product.inStock || true,
+            inventory: product.inventory || 0
+          };
+
+          return { items: [...state.items, newItem] };
         });
       },
 
@@ -64,36 +65,39 @@ export const useCartStore = create<CartState>()(
       },
 
       updateQuantity: (productId: number, quantity: number) => {
-        if (quantity < 1) return;
         set((state) => ({
           items: state.items.map(item =>
-            item.id === productId ? { ...item, quantity } : item
+            item.id === productId ? { ...item, quantity: Number(quantity) } : item
           )
         }));
       },
 
       clearCart: () => {
-        set({ items: [] });
+        set({ items: [], installationType: 'none', installationFee: 0, installationService: false });
       },
 
-      setInstallationType: (type: keyof typeof INSTALLATION_OPTIONS) => {
-        const option = INSTALLATION_OPTIONS[type];
-        set({ 
-          installationType: type,
-          installationFee: option.price,
-          installationService: type !== 'none'
-        });
+      setInstallationType: (serviceId: string) => {
+        set({ installationType: serviceId });
+      },
+
+      setInstallationFee: (fee: number) => {
+        set({ installationFee: Number(fee) });
+      },
+
+      getItemsSubtotal: () => {
+        const state = get();
+        return state.items.reduce((sum, item) => {
+          return sum + (Number(item.price) * Number(item.quantity));
+        }, 0);
       },
 
       getTotal: () => {
-        const { items, installationFee } = get();
-        const itemsTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        return itemsTotal + installationFee;
-      },
-
-      getInstallationFee: () => {
-        return get().installationFee;
-      },
+        const state = get();
+        const itemsTotal = state.items.reduce((sum, item) => {
+          return sum + (Number(item.price) * Number(item.quantity));
+        }, 0);
+        return Number(itemsTotal) + Number(state.installationFee);
+      }
     }),
     {
       name: 'cart-storage',

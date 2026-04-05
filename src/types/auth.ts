@@ -90,6 +90,14 @@ export interface Order {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  // Service tracking
+  serviceId?: number;
+  serviceName?: string;
+  servicePrice?: number;
+  hasService?: boolean;
 }
 
 // Cart types
@@ -125,4 +133,20 @@ export interface LoginCredentials {
 
 export type UserProfile = User;
 
+
+
+
+export interface Service {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  category?: string;
+  duration?: string;
+  isActive: boolean;
+  image?: string;
+  features?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 

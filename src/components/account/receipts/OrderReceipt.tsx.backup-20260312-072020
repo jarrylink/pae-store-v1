@@ -1,0 +1,111 @@
+﻿'use client';
+
+import React, { useEffect, useState } from 'react';
+import { Order } from '@/types/auth';
+import QRCode from 'qrcode';
+
+interface OrderReceiptProps {
+  order: Order;
+  onClose: () => void;
+}
+
+const OrderReceipt: React.FC<OrderReceiptProps> = ({ order, onClose }) => {
+  useEffect(() => {
+    generateReceiptWindow();
+  }, []);
+
+  const formatDate = (date: string | Date) => {
+    if (!date) return 'N/A';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatShortDate = (date: string | Date) => {
+    if (!date) return 'N/A';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
+
+  const numberToWords = (num: number): string => {
+    // Simple number to words conversion
+    return num.toString() + ' Naira Only';
+  };
+
+  const generateReceiptWindow = async () => {
+    // Calculate installation items and fee
+    const installationItems = order.items.filter((item: any) => {
+      const installationKeywords = ['inverter', 'solar panel', 'battery', 'generator', 'system'];
+      const title = item.title?.toLowerCase() || '';
+      return installationKeywords.some(keyword => title.includes(keyword));
+    });
+    
+    const installationFee = installationItems.reduce((sum, item) => {
+      return sum + (item.price * item.quantity * 0.1);
+    }, 0);
+
+    const subtotal = order.subtotal || order.total;
+    const totalWithInstallation = subtotal + installationFee;
+
+    // Generate receipt number
+    const date = new Date(order.createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const receiptNumber = `PAE/FDCR/PA-${year}${month}${day}-${random}/${year}`;
+
+    // Get customer information safely
+    const customerName = order.customerName || order.shippingAddress?.name || 'Walk-in Customer';
+    const customerPhone = order.customerPhone || order.shippingAddress?.phone || 'N/A';
+    const customerEmail = order.customerEmail || '';
+
+    // Generate QR Code
+    let qrCodeUrl = '';
+    try {
+      const verificationData = {
+        receiptNo: receiptNumber,
+        orderId: order.id,
+        date: formatShortDate(order.createdAt),
+        total: totalWithInstallation,
+        customer: customerName
+      };
+      qrCodeUrl = await QRCode.toDataURL(JSON.stringify(verificationData), {
+        width: 75,
+        margin: 0,
+      });
+    } catch (err) {
+      console.error('Error generating QR code:', err);
+    }
+
+    // Create receipt HTML (simplified for brevity)
+    const receiptHTML = `<!DOCTYPE html><html><body>Receipt HTML here</body></html>`;
+
+    const receiptWindow = window.open('', '_blank', 'width=900,height=700');
+    if (receiptWindow) {
+      receiptWindow.document.write(receiptHTML);
+      receiptWindow.document.close();
+      receiptWindow.focus();
+    }
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-lg p-6 max-w-md text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1a2a8a] mx-auto mb-2"></div>
+        <h3 className="text-base font-bold text-gray-900 mb-1">Generating Receipt</h3>
+        <p className="text-xs text-gray-600 mb-2">Please wait...</p>
+      </div>
+    </div>
+  );
+};
+
+export default OrderReceipt;

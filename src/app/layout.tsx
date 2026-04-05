@@ -1,7 +1,7 @@
-import type { Metadata } from 'next';
-// Using system fonts instead of Google Fonts for build stability
+﻿import type { Metadata } from 'next';
 import './globals.css';
 import ClientLayout from '@/components/layout/ClientLayout';
+import Notification from '@/components/ui/Notification';
 
 // System font stack
 
@@ -21,8 +21,8 @@ export default function RootLayout({
         <ClientLayout>
           {children}
         </ClientLayout>
+        <Notification />
       </body>
     </html>
   );
 }
-

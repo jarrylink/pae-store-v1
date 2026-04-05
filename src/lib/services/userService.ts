@@ -1,183 +1,176 @@
-﻿import { User } from '@/types/auth';
-
-const API_BASE = '/api/users';
+﻿const API_BASE = '/api/users';
 
 export interface UserFilters {
-  role?: 'superadmin' | 'staff' | 'customer';
+  role?: string;
   search?: string;
   isActive?: boolean;
   page?: number;
   limit?: number;
 }
 
-export interface UsersResponse {
-  success: boolean;
-  data: Omit<User, 'password'>[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 export interface UserResponse {
   success: boolean;
-  data: Omit<User, 'password'>;
+  data: any;
   message?: string;
 }
 
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      console.log(`Attempt ${i + 1} failed, ${retries - i - 1} retries left`);
+      if (i === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
 class UserService {
-  // Get all users with optional filters – API returns array directly
-  async getUsers(filters: UserFilters = {}): Promise<UsersResponse> {
-    const params = new URLSearchParams();
-    if (filters.role) params.append('role', filters.role);
-    if (filters.search) params.append('search', filters.search);
-    if (filters.isActive !== undefined) params.append('isActive', filters.isActive.toString());
-    if (filters.page) params.append('page', filters.page.toString());
-    if (filters.limit) params.append('limit', filters.limit.toString());
-
-    const response = await fetch(`${API_BASE}?${params.toString()}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch users');
+  async getUsers(filters: UserFilters = {}): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      if (filters.role) params.append('role', filters.role);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.isActive !== undefined) params.append('isActive', String(filters.isActive));
+      if (filters.page) params.append('page', String(filters.page));
+      if (filters.limit) params.append('limit', String(filters.limit));
+      
+      const res = await fetchWithRetry(`${API_BASE}?${params.toString()}`);
+      if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+      
+      const data = await res.json();
+      return {
+        success: true,
+        data: data
+      };
+    } catch (error) {
+      console.error('Error in getUsers:', error);
+      return { success: false, data: [], error: error instanceof Error ? error.message : 'Unknown error' };
     }
-    const data = await response.json(); // API returns array of users without passwords
-
-    // Wrap to match UsersResponse interface
-    return {
-      success: true,
-      data: data,
-      total: data.length,
-      page: filters.page || 1,
-      limit: filters.limit || data.length
-    };
   }
 
-  // Get a single user by ID (not used in admin page, but kept for completeness)
-  async getUserById(id: string): Promise<UserResponse> {
-    const users = await this.getUsers();
-    const user = users.data.find(u => u.id === id);
-    if (!user) {
-      throw new Error('User not found');
+  async getUserById(id: string): Promise<any> {
+    try {
+      const res = await fetchWithRetry(`${API_BASE}/${id}`);
+      if (!res.ok) throw new Error('Failed to fetch user');
+      return await res.json();
+    } catch (error) {
+      console.error('Error in getUserById:', error);
+      return null;
     }
-    return {
-      success: true,
-      data: user
-    };
   }
 
-  // Create a new user
-  async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'avatar' | 'emailVerified'>): Promise<UserResponse> {
-    const response = await fetch(API_BASE, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Create user failed:', error);
-      throw new Error(error.error || 'Failed to create user');
+  async createUser(data: any): Promise<any> {
+    try {
+      console.log('Creating user with data:', data);
+      const res = await fetchWithRetry(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      const responseData = await res.json();
+      console.log('Create user response status:', res.status);
+      console.log('Create user response data:', responseData);
+      
+      if (!res.ok) {
+        throw new Error(responseData.error || `Failed to create user (${res.status})`);
+      }
+      
+      return { success: true, data: responseData };
+    } catch (error) {
+      console.error('Error in createUser:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-
-    const newUser = await response.json();
-    return {
-      success: true,
-      data: newUser
-    };
   }
 
-  // Update a user
-  async updateUser(id: string, userData: Partial<User>): Promise<UserResponse> {
-    const response = await fetch(API_BASE, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id, ...userData }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Update user failed:', error);
-      throw new Error(error.error || 'Failed to update user');
+  async updateUser(id: string, data: any): Promise<any> {
+    try {
+      console.log(`Updating user ${id} with data:`, data);
+      const res = await fetchWithRetry(`${API_BASE}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      console.log('Update response status:', res.status);
+      const responseData = await res.json();
+      console.log('Update response data:', responseData);
+      
+      if (!res.ok) {
+        throw new Error(responseData.error || `Failed to update user (${res.status})`);
+      }
+      return { success: true, data: responseData };
+    } catch (error) {
+      console.error('Error in updateUser:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-
-    const updatedUser = await response.json();
-    return {
-      success: true,
-      data: updatedUser
-    };
   }
 
-  // Toggle user active status
-  async toggleUserStatus(id: string, isActive: boolean): Promise<UserResponse> {
-    const response = await fetch(API_BASE, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id, isActive }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Toggle user status failed:', error);
-      throw new Error(error.error || 'Failed to update user status');
+  async deleteUser(id: string): Promise<boolean> {
+    try {
+      const res = await fetchWithRetry(`${API_BASE}/${id}`, {
+        method: 'DELETE'
+      });
+      return res.ok;
+    } catch (error) {
+      console.error('Error in deleteUser:', error);
+      return false;
     }
-
-    const updatedUser = await response.json();
-    return {
-      success: true,
-      data: updatedUser
-    };
   }
 
-  // Delete a user
-  async deleteUser(id: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE}?id=${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Delete user failed:', error);
-      throw new Error(error.error || 'Failed to delete user');
+  async toggleUserStatus(id: string, isActive: boolean): Promise<any> {
+    try {
+      const res = await fetchWithRetry(`${API_BASE}/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update user status');
+      }
+      return { success: true, data: await res.json() };
+    } catch (error) {
+      console.error('Error in toggleUserStatus:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-
-    return response.json();
   }
 
-  // Get user statistics – computed from fetched users
-  async getUserStats(): Promise<{
-    total: number;
-    byRole: { [key: string]: number };
-    active: number;
-    inactive: number;
-  }> {
-    const usersResponse = await this.getUsers(); // now returns wrapped response
-    const users = usersResponse.data;
-
-    const stats = {
-      total: users.length,
-      byRole: {
-        superadmin: users.filter(u => u.role === 'superadmin').length,
-        staff: users.filter(u => u.role === 'staff').length,
-        customer: users.filter(u => u.role === 'customer').length,
-      },
-      active: users.filter(u => u.isActive).length,
-      inactive: users.filter(u => !u.isActive).length,
-    };
-
-    return stats;
+  async getUserStats(): Promise<any> {
+    try {
+      const users = await this.getUsers();
+      if (users.success && users.data) {
+        const userList = users.data;
+        return {
+          total: userList.length,
+          byRole: {
+            superadmin: userList.filter((u: any) => u.role === 'superadmin').length,
+            staff: userList.filter((u: any) => u.role === 'staff').length,
+            customer: userList.filter((u: any) => u.role === 'customer').length,
+          },
+          active: userList.filter((u: any) => u.isActive).length,
+          inactive: userList.filter((u: any) => !u.isActive).length,
+        };
+      }
+      return { total: 0, byRole: {}, active: 0, inactive: 0 };
+    } catch (error) {
+      console.error('Error in getUserStats:', error);
+      return { total: 0, byRole: {}, active: 0, inactive: 0 };
+    }
   }
 
-  // Get recent users
-  async getRecentUsers(limit: number = 5): Promise<Omit<User, 'password'>[]> {
-    const usersResponse = await this.getUsers();
-    // Sort by createdAt descending and limit
-    return usersResponse.data
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, limit);
+  async getRecentUsers(limit: number = 5): Promise<any[]> {
+    try {
+      const users = await this.getUsers({ limit });
+      return users.success ? users.data : [];
+    } catch (error) {
+      console.error('Error in getRecentUsers:', error);
+      return [];
+    }
   }
 }
 

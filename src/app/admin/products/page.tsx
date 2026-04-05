@@ -37,31 +37,41 @@ export default function ProductsManagement() {
     setError(null);
     try {
       const fetchedProducts = await productsService.getAllProducts();
-      setProducts(fetchedProducts);
-      setFilteredProducts(fetchedProducts);
-      
-      const uniqueCategories = ['all', ...Array.from(new Set(fetchedProducts.map(p => p.category)))];
+      const productsArray = Array.isArray(fetchedProducts) ? fetchedProducts : [];
+      setProducts(productsArray);
+      setFilteredProducts(productsArray);
+
+      const uniqueCategories = ['all', ...Array.from(new Set(productsArray.map(p => p.category)))];
       setCategories(uniqueCategories);
-      
-      calculateStats(fetchedProducts);
-      
-      setSuccessMessage(`Loaded ${fetchedProducts.length} products successfully`);
+
+      calculateStats(productsArray);
+
+      if (productsArray.length === 0) {
+        setSuccessMessage('No products found. Add your first product!');
+      } else {
+        setSuccessMessage(`Loaded ${productsArray.length} products successfully`);
+      }
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Failed to load products:', error);
       setError('Failed to load products. Please try again.');
+      setProducts([]);
+      setFilteredProducts([]);
+      setCategories(['all']);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   const calculateStats = (productsList: Product[]) => {
-    const total = productsList.length;
-    const inStock = productsList.filter(p => p.inStock).length;
-    const lowStock = productsList.filter(p => p.inventory < 10 && p.inventory > 0).length;
-    const outOfStock = productsList.filter(p => !p.inStock || p.inventory === 0).length;
-    const totalValue = productsList.reduce((sum, p) => sum + (p.price * p.inventory), 0);
-    
+    const list = Array.isArray(productsList) ? productsList : [];
+    const total = list.length;
+    const inStock = list.filter(p => p?.inStock).length;
+    const lowStock = list.filter(p => p?.inventory < 10 && p?.inventory > 0).length;
+    const outOfStock = list.filter(p => !p?.inStock || p?.inventory === 0).length;
+    const totalValue = list.reduce((sum, p) => sum + ((p?.price || 0) * (p?.inventory || 0)), 0);
+
     setStats({ total, inStock, lowStock, outOfStock, totalValue });
   };
 
@@ -97,7 +107,9 @@ export default function ProductsManagement() {
       const newProduct = await productsService.createProduct(productData);
       await loadProducts();
       setShowProductForm(false);
-      setSuccessMessage(`Product "${newProduct.title}" created successfully!`);
+      // Use optional chaining and null check
+      const productTitle = newProduct?.title ?? 'Product';
+      setSuccessMessage(`Product "${productTitle}" created successfully!`);
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Failed to create product:', error);
@@ -109,7 +121,7 @@ export default function ProductsManagement() {
 
   const handleEditProduct = async (productData: any) => {
     if (!editingProduct) return;
-    
+
     setSaving(true);
     setError(null);
     try {
@@ -117,7 +129,8 @@ export default function ProductsManagement() {
       await loadProducts();
       setEditingProduct(null);
       setShowProductForm(false);
-      setSuccessMessage(`Product "${updatedProduct.title}" updated successfully!`);
+      const productTitle = updatedProduct?.title ?? 'Product';
+      setSuccessMessage(`Product "${productTitle}" updated successfully!`);
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Failed to update product:', error);
@@ -129,12 +142,12 @@ export default function ProductsManagement() {
 
   const handleDeleteProduct = async (productId: number) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
-    
+
     setSaving(true);
     setError(null);
     try {
       const success = await productsService.deleteProduct(productId);
-      
+
       if (success) {
         await loadProducts();
         setSelectedProducts(prev => prev.filter(id => id !== productId));
@@ -151,15 +164,15 @@ export default function ProductsManagement() {
 
   const handleBulkDelete = async () => {
     if (selectedProducts.length === 0) return;
-    
+
     if (!window.confirm(`Delete ${selectedProducts.length} selected products?`)) return;
-    
+
     setSaving(true);
     setError(null);
     try {
       const deletePromises = selectedProducts.map(id => productsService.deleteProduct(id));
       await Promise.all(deletePromises);
-      
+
       await loadProducts();
       setSelectedProducts([]);
       setSuccessMessage(`${selectedProducts.length} products deleted successfully!`);
@@ -189,8 +202,8 @@ export default function ProductsManagement() {
   };
 
   const handleSelectProduct = (productId: number) => {
-    setSelectedProducts(prev => 
-      prev.includes(productId) 
+    setSelectedProducts(prev =>
+      prev.includes(productId)
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
@@ -224,10 +237,10 @@ export default function ProductsManagement() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Product Management</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Manage your store products, inventory, and pricing. All changes are saved to products.ts file.
+            Manage your store products, inventory, and pricing.
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           <button
             onClick={() => loadProducts()}
@@ -322,7 +335,6 @@ export default function ProductsManagement() {
       {/* Controls Bar */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -359,7 +371,6 @@ export default function ProductsManagement() {
             </div>
           </div>
 
-          {/* View Toggle and Actions */}
           <div className="flex items-center space-x-3">
             <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg p-1">
               <button
@@ -412,14 +423,13 @@ export default function ProductsManagement() {
         <div className="flex flex-col items-center justify-center py-16">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#1a2a8a] mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading products...</p>
-          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Reading from products.ts file</p>
         </div>
       ) : filteredProducts.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No products found</h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {searchQuery || selectedCategory !== 'all' 
+            {searchQuery || selectedCategory !== 'all'
               ? 'Try adjusting your search or filter criteria'
               : 'Get started by adding your first product'}
           </p>
@@ -607,8 +617,7 @@ export default function ProductsManagement() {
         </div>
         <div className="text-sm">
           <span className="text-gray-900 dark:text-white font-medium">Data Source:</span>{' '}
-          <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">src/lib/data/products.ts</code>
-          <span className="ml-3">All changes saved to file</span>
+          <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Neon Database</code>
         </div>
       </div>
     </div>

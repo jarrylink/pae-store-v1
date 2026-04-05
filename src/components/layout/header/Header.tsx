@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import HeaderSearch from './HeaderSearch';
@@ -16,11 +16,25 @@ const Header: React.FC = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { items } = useCartStore();
   const { user, isAuthenticated, logout } = useAuthStore();
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Handle scroll effect
   useEffect(() => {
@@ -34,17 +48,20 @@ const Header: React.FC = () => {
   const handleLoginClick = () => {
     setIsLoginOpen(true);
     setIsMobileMenuOpen(false);
+    setIsAccountDropdownOpen(false);
   };
 
   const handleRegisterClick = () => {
     setIsRegisterOpen(true);
     setIsMobileMenuOpen(false);
+    setIsAccountDropdownOpen(false);
   };
 
   const handleLogout = () => {
     logout();
     setIsMobileMenuOpen(false);
-    window.location.href = '/'; // Redirect to main page after logout
+    setIsAccountDropdownOpen(false);
+    window.location.href = '/';
   };
 
   const switchToRegister = () => {
@@ -60,6 +77,10 @@ const Header: React.FC = () => {
   const closeAllModals = () => {
     setIsLoginOpen(false);
     setIsRegisterOpen(false);
+  };
+
+  const toggleAccountDropdown = () => {
+    setIsAccountDropdownOpen(!isAccountDropdownOpen);
   };
 
   // Determine user type
@@ -91,13 +112,13 @@ const Header: React.FC = () => {
 
       {/* Main Header */}
       <header className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled 
-          ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg shadow-lg' 
+        scrolled
+          ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg shadow-lg'
           : 'bg-white dark:bg-gray-900'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo - Clean & Professional */}
+            {/* Logo */}
             <Link href="/" className="flex items-center">
               <div className="flex items-center space-x-2">
                 <img
@@ -111,19 +132,19 @@ const Header: React.FC = () => {
                   className="h-8 hidden dark:block"
                 />
                 <span className="text-xl font-bold bg-gradient-to-r from-[#1a2a8a] to-[#40b553] bg-clip-text text-transparent">
-                  POWER AFRIC
+                  Store
                 </span>
               </div>
             </Link>
 
-            {/* Desktop Navigation - Clean & Proportional */}
+            {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-1">
               {[
-                { name: 'Solar Panels', href: '/solar-panels' },
-                { name: 'Inverters', href: '/inverters' },
-                { name: 'Batteries', href: '/batteries' },
-                { name: 'Kits', href: '/kits' },
-                { name: 'Installation', href: '/installation' },
+                { name: 'Solar Panels', href: '/products?category=solar-panels' },
+                { name: 'Inverters', href: '/products?category=inverters' },
+                { name: 'Batteries', href: '/products?category=batteries' },
+                { name: 'Kits', href: '/products?category=kits' },
+                { name: 'Installation', href: '/products?category=installation' },
               ].map((item) => (
                 <Link
                   key={item.name}
@@ -134,20 +155,20 @@ const Header: React.FC = () => {
                 </Link>
               ))}
 
-              {/* Dashboard Link for Admin Users - Distinct Style */}
+              {/* Dashboard Link for Admin Users */}
               {isAdminUser && (
                 <Link
-                  href="/admin/dashboard"
+                  href={isSuperAdmin ? "/admin/dashboard" : isStaff ? "/staff/dashboard" : "/admin/dashboard"}
                   className="ml-2 px-3 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
                 >
-                  {isSuperAdmin ? 'SUPER ADMIN' : 'DASHBOARD'}
+                  {isSuperAdmin ? 'ADMIN' : 'DASHBOARD'}
                 </Link>
               )}
             </nav>
 
-            {/* Right Side Actions - Role-Based */}
+            {/* Right Side Actions */}
             <div className="flex items-center space-x-2">
-              {/* Search - Always Visible */}
+              {/* Search */}
               <div className="hidden md:block">
                 <HeaderSearch />
               </div>
@@ -174,9 +195,12 @@ const Header: React.FC = () => {
                 </button>
               )}
 
-              {/* User Profile - Clean & Professional */}
-              <div className="relative group">
-                <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              {/* User Profile - Click dropdown (works on both desktop and mobile) */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={toggleAccountDropdown}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
                   {isAuthenticated && user ? (
                     <>
                       <img
@@ -189,7 +213,7 @@ const Header: React.FC = () => {
                           {user.firstName}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {isSuperAdmin ? 'Super Admin' : isStaff ? 'Staff' : 'Customer'}
+                          {isSuperAdmin ? 'ADMIN' : isStaff ? 'Staff' : 'Customer'}
                         </div>
                       </div>
                     </>
@@ -205,9 +229,9 @@ const Header: React.FC = () => {
                   )}
                 </button>
 
-                {/* Dropdown Menu - Clean & Professional */}
-                <div className="absolute right-0 top-full mt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                {/* Dropdown Menu - Toggle based on state */}
+                {isAccountDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
                     <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                       {isAuthenticated ? (
                         <div className="flex items-center space-x-3">
@@ -226,7 +250,7 @@ const Header: React.FC = () => {
                               isStaff ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
                               'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                             }`}>
-                              {isSuperAdmin ? 'Super Admin' : isStaff ? 'Staff' : 'Customer'}
+                              {isSuperAdmin ? 'ADMIN' : isStaff ? 'Staff' : 'Customer'}
                             </div>
                           </div>
                         </div>
@@ -241,26 +265,28 @@ const Header: React.FC = () => {
                     <div className="p-1">
                       {isAuthenticated ? (
                         <>
-                          {/* Super Admin & Staff Menu */}
+                          {/* ADMIN & Staff Menu */}
                           {isAdminUser ? (
                             <>
-                              <Link 
-                                href="/admin/dashboard" 
+                              <Link
+                                href={isSuperAdmin ? "/admin/dashboard" : isStaff ? "/staff/dashboard" : "/admin/dashboard"}
                                 className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                onClick={() => setIsAccountDropdownOpen(false)}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
-                                <span>{isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}</span>
+                                <span>{isSuperAdmin ? 'ADMIN Dashboard' : 'Admin Dashboard'}</span>
                               </Link>
 
-                              {/* Super Admin Only Links */}
+                              {/* ADMIN Only Links */}
                               {isSuperAdmin && (
                                 <>
-                                  <Link 
-                                    href="/admin/users" 
+                                  <Link
+                                    href="/admin/users"
                                     className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                    onClick={() => setIsAccountDropdownOpen(false)}
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
@@ -268,9 +294,10 @@ const Header: React.FC = () => {
                                     <span>Manage Users</span>
                                   </Link>
 
-                                  <Link 
-                                    href="/admin/settings" 
+                                  <Link
+                                    href="/admin/settings"
                                     className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                    onClick={() => setIsAccountDropdownOpen(false)}
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -284,34 +311,15 @@ const Header: React.FC = () => {
                           ) : (
                             /* Customer Menu */
                             <>
-                              <Link 
-                                href="/account" 
+                              <Link
+                                href="/account"
                                 className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                onClick={() => setIsAccountDropdownOpen(false)}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
                                 <span>My Account</span>
-                              </Link>
-
-                              <Link 
-                                href="/orders" 
-                                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                                <span>My Orders</span>
-                              </Link>
-
-                              <Link 
-                                href="/wishlist" 
-                                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                                <span>Wishlist</span>
                               </Link>
                             </>
                           )}
@@ -355,7 +363,7 @@ const Header: React.FC = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Mobile Menu Button */}
@@ -377,13 +385,13 @@ const Header: React.FC = () => {
                 <div className="mb-4">
                   <HeaderSearch />
                 </div>
-                
+
                 {[
-                  { name: 'Solar Panels', href: '/solar-panels' },
-                  { name: 'Inverters', href: '/inverters' },
-                  { name: 'Batteries', href: '/batteries' },
-                  { name: 'Kits', href: '/kits' },
-                  { name: 'Installation', href: '/installation' },
+                  { name: 'Solar Panels', href: '/products?category=solar-panels' },
+                  { name: 'Inverters', href: '/products?category=inverters' },
+                  { name: 'Batteries', href: '/products?category=batteries' },
+                  { name: 'Kits', href: '/products?category=kits' },
+                  { name: 'Installation', href: '/products?category=installation' },
                 ].map((item) => (
                   <Link
                     key={item.name}
@@ -398,11 +406,11 @@ const Header: React.FC = () => {
                 {/* Dashboard Link for Admin Users in Mobile */}
                 {isAdminUser && (
                   <Link
-                    href="/admin/dashboard"
+                    href={isSuperAdmin ? "/admin/dashboard" : isStaff ? "/staff/dashboard" : "/admin/dashboard"}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="block mt-2 px-3 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white"
                   >
-                    {isSuperAdmin ? 'SUPER ADMIN DASHBOARD' : 'ADMIN DASHBOARD'}
+                    {isSuperAdmin ? 'ADMIN DASHBOARD' : 'ADMIN DASHBOARD'}
                   </Link>
                 )}
               </div>
@@ -411,7 +419,7 @@ const Header: React.FC = () => {
         </div>
       </header>
 
-      {/* Cart Drawer - Only for Customers */}
+      {/* Cart Drawer */}
       {!isAdminUser && (
         <CartDrawer
           isOpen={isCartOpen}
@@ -436,3 +444,5 @@ const Header: React.FC = () => {
 };
 
 export default Header;
+
+

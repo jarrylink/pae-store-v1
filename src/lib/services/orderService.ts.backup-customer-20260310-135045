@@ -1,0 +1,283 @@
+﻿import { neon } from '@neondatabase/serverless';
+import { Order } from '@/types/auth';
+import QRCode from 'qrcode';
+
+const sql = neon(process.env.DATABASE_URL!);
+
+export interface OrderFilters {
+  userId?: string;
+  status?: string;
+  limit?: number;
+  orderNumber?: string;
+}
+
+export interface OrdersResponse {
+  success: boolean;
+  data: Order[];
+  total: number;
+  error?: string;
+}
+
+// Generate unique order number
+export function generateOrderNumber(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `PA-${year}${month}${day}-${random}`;
+}
+
+// Generate QR code data for order
+export async function generateOrderQRCode(orderId: number, orderNumber: string): Promise<string> {
+  try {
+    const qrData = JSON.stringify({
+      orderId,
+      orderNumber,
+      timestamp: new Date().toISOString()
+    });
+    return await QRCode.toDataURL(qrData);
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    return '';
+  }
+}
+
+export class OrderService {
+  
+  // Get orders with filters - Using tagged template style (Neon recommended)
+  async getOrders(filters: OrderFilters = {}): Promise<OrdersResponse> {
+    try {
+      let query = sql`SELECT * FROM "Order"`;
+      const conditions: string[] = [];
+      
+      // Build conditions
+      if (filters.userId) {
+        conditions.push(`"userId" = '${filters.userId}'`);
+      }
+      if (filters.status) {
+        conditions.push(`status = '${filters.status}'`);
+      }
+      if (filters.orderNumber) {
+        conditions.push(`"orderNumber" = '${filters.orderNumber}'`);
+      }
+
+      // Add WHERE clause if conditions exist
+      if (conditions.length > 0) {
+        query = sql`SELECT * FROM "Order" WHERE ${sql(conditions.join(' AND '))}`;
+      }
+
+      // Add ORDER BY
+      query = sql`${query} ORDER BY "createdAt" DESC`;
+
+      // Add LIMIT if specified
+      if (filters.limit) {
+        query = sql`${query} LIMIT ${filters.limit}`;
+      }
+
+      const orders = await query;
+
+      // Get total count
+      let countQuery = sql`SELECT COUNT(*) FROM "Order"`;
+      if (conditions.length > 0) {
+        countQuery = sql`SELECT COUNT(*) FROM "Order" WHERE ${sql(conditions.join(' AND '))}`;
+      }
+      const totalResult = await countQuery;
+      const total = parseInt(totalResult[0].count);
+
+      return {
+        success: true,
+        data: orders as Order[],
+        total
+      };
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        error: 'Failed to fetch orders'
+      };
+    }
+  }
+
+  // Get single order by ID
+  async getOrderById(id: number): Promise<Order | null> {
+    try {
+      const orders = await sql`SELECT * FROM "Order" WHERE id = ${id}`;
+      return orders[0] as Order || null;
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      return null;
+    }
+  }
+
+  // Get order by order number
+  async getOrderByNumber(orderNumber: string): Promise<Order | null> {
+    try {
+      const orders = await sql`SELECT * FROM "Order" WHERE "orderNumber" = ${orderNumber}`;
+      return orders[0] as Order || null;
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      return null;
+    }
+  }
+
+  // Create new order with customer data - Using transaction for multiple queries
+  async createOrder(orderData: any): Promise<Order | null> {
+    try {
+      // Generate order number
+      const orderNumber = generateOrderNumber();
+      
+      // Get user details for denormalized storage
+      let customerName = '';
+      let customerPhone = '';
+      let customerEmail = '';
+
+      if (orderData.userId) {
+        const users = await sql`SELECT "firstName", "lastName", email, phone FROM "User" WHERE id = ${orderData.userId}`;
+        if (users.length > 0) {
+          const user = users[0];
+          customerName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+          customerPhone = user.phone || '';
+          customerEmail = user.email || '';
+        }
+      }
+
+      // Fallback to shipping address
+      if (!customerName && orderData.shippingAddress?.name) {
+        customerName = orderData.shippingAddress.name;
+      }
+      if (!customerPhone && orderData.shippingAddress?.phone) {
+        customerPhone = orderData.shippingAddress.phone;
+      }
+
+      // Generate QR code
+      const qrCodeData = await generateOrderQRCode(0, orderNumber); // ID will be updated after insert
+
+      // Use transaction for multiple related operations
+      const result = await sql.transaction([
+        // Insert order
+        sql`
+          INSERT INTO "Order" (
+            "userId", "orderNumber", items, subtotal, shipping, tax, total,
+            status, "shippingAddress", "billingAddress", "paymentMethod",
+            "paymentStatus", notes, "createdAt", "updatedAt",
+            "customerName", "customerPhone", "customerEmail", "qrCodeData"
+          ) VALUES (
+            ${orderData.userId},
+            ${orderNumber},
+            ${JSON.stringify(orderData.items)},
+            ${orderData.subtotal || 0},
+            ${orderData.shipping || 0},
+            ${orderData.tax || 0},
+            ${orderData.total || 0},
+            ${orderData.status || 'pending'},
+            ${orderData.shippingAddress ? JSON.stringify(orderData.shippingAddress) : null},
+            ${orderData.billingAddress ? JSON.stringify(orderData.billingAddress) : null},
+            ${orderData.paymentMethod || 'pending'},
+            'pending',
+            ${orderData.notes || ''},
+            ${new Date().toISOString()},
+            ${new Date().toISOString()},
+            ${customerName || 'Walk-in Customer'},
+            ${customerPhone || 'N/A'},
+            ${customerEmail || ''},
+            ${qrCodeData}
+          ) RETURNING id
+        `,
+        // We'll update QR code with correct ID in a second transaction
+      ]);
+
+      const newOrderId = result[0][0].id;
+
+      // Update QR code with correct ID
+      const updatedQRCode = await generateOrderQRCode(newOrderId, orderNumber);
+      await sql`UPDATE "Order" SET "qrCodeData" = ${updatedQRCode} WHERE id = ${newOrderId}`;
+
+      // Fetch and return the created order
+      return await this.getOrderById(newOrderId);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      return null;
+    }
+  }
+
+  // Update order status
+  async updateOrderStatus(orderId: number, status: string, notes?: string): Promise<Order | null> {
+    try {
+      const orders = await sql`
+        UPDATE "Order" 
+        SET status = ${status}, 
+            notes = COALESCE(${notes}, notes), 
+            "updatedAt" = ${new Date().toISOString()}
+        WHERE id = ${orderId}
+        RETURNING *
+      `;
+      
+      return orders[0] as Order || null;
+    } catch (error) {
+      console.error('Error updating order:', error);
+      return null;
+    }
+  }
+
+  // Get user orders
+  async getUserOrders(userId: string): Promise<Order[]> {
+    try {
+      return await sql`SELECT * FROM "Order" WHERE "userId" = ${userId} ORDER BY "createdAt" DESC` as Order[];
+    } catch (error) {
+      console.error('Error fetching user orders:', error);
+      return [];
+    }
+  }
+
+  // Migrate existing orders to have customer data (run once)
+  async migrateExistingOrders(): Promise<void> {
+    try {
+      // Get all orders without customer data
+      const orders = await sql`SELECT * FROM "Order" WHERE "customerName" IS NULL`;
+      
+      for (const order of orders) {
+        let customerName = '';
+        let customerPhone = '';
+        let customerEmail = '';
+
+        // Try to get user data
+        if (order.userId) {
+          const users = await sql`SELECT "firstName", "lastName", email, phone FROM "User" WHERE id = ${order.userId}`;
+          if (users.length > 0) {
+            const user = users[0];
+            customerName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+            customerPhone = user.phone || '';
+            customerEmail = user.email || '';
+          }
+        }
+
+        // Fallback to shipping address
+        if (!customerName && order.shippingAddress) {
+          const address = typeof order.shippingAddress === 'string' 
+            ? JSON.parse(order.shippingAddress) 
+            : order.shippingAddress;
+          customerName = address.name || '';
+          customerPhone = address.phone || '';
+        }
+
+        // Update order
+        await sql`
+          UPDATE "Order" 
+          SET "customerName" = ${customerName || 'Customer'}, 
+              "customerPhone" = ${customerPhone || 'N/A'}, 
+              "customerEmail" = ${customerEmail || ''} 
+          WHERE id = ${order.id}
+        `;
+      }
+      
+      console.log(`✅ Migrated ${orders.length} existing orders`);
+    } catch (error) {
+      console.error('Error migrating orders:', error);
+    }
+  }
+}
+
+export const orderService = new OrderService();

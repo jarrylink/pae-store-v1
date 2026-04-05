@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '@/utils';
 import { User } from '@/types/auth';
-import { orderService } from '@/lib/services/orderService';
 import { Order } from '@/types/auth';
 import OrderCard from '@/components/orders/OrderCard';
 
@@ -23,10 +22,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({ user, onClose, isSuperAdmin =
     const fetchUserOrders = async () => {
       try {
         setLoading(true);
-        const response = await orderService.getUserOrders(user.id);
-        setOrders(response);
+        const res = await fetch(`/api/orders?userId=${user.id}`);
+        if (!res.ok) throw new Error('Failed to fetch orders');
+        const data = await res.json();
+        setOrders(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error fetching user orders:', error);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -177,8 +179,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({ user, onClose, isSuperAdmin =
                   <div className="space-y-4">
                     {orders.map((order) => (
                       <div key={order.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <OrderCard 
-                          order={order} 
+                        <OrderCard
+                          order={order}
                           isAdmin={isSuperAdmin}
                           onStatusUpdate={isSuperAdmin ? () => {} : undefined}
                         />
@@ -292,5 +294,3 @@ const UserDetails: React.FC<UserDetailsProps> = ({ user, onClose, isSuperAdmin =
 };
 
 export default UserDetails;
-
-

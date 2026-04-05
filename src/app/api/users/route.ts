@@ -1,140 +1,79 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { getUsers, saveUsers, findUserById } from '@/lib/data/usersService';
-import { User } from '@/lib/data/users';
+import { neon } from '@neondatabase/serverless';
 
-// GET /api/users – list all users (admin only)
-export async function GET(request: NextRequest) {
+const sql = neon(process.env.DATABASE_URL!);
+
+// GET all users
+export async function GET() {
   try {
-    const users = await getUsers();
-    // Remove passwords from response
-    const usersWithoutPasswords = users.map(({ password, ...rest }) => rest);
-    return NextResponse.json(usersWithoutPasswords);
+    console.log("GET /api/users - fetching all users");
+    const users = await sql`
+      SELECT id, email, "firstName", "lastName", avatar, "emailVerified", phone, role,
+             "createdAt", "updatedAt", "lastLogin", "isActive", permissions
+      FROM "User"
+      ORDER BY "createdAt" DESC
+    `;
+    console.log(`Found ${users.length} users`);
+    return NextResponse.json(users);
   } catch (error) {
-    console.error('Error fetching users:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error("Error fetching users:", error);
+    // Return empty array on error to prevent UI crashes
+    return NextResponse.json([]);
   }
 }
 
-// POST /api/users – create a new user (admin only)
+// POST new user
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, firstName, lastName, phone, role, permissions, avatar, emailVerified, isActive } = body;
+    console.log("Creating user with data:", body);
 
-    if (!email || !firstName || !lastName) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
+    // Check if user already exists
+    const existing = await sql`
+      SELECT id FROM "User" WHERE email = ${body.email}
+    `;
 
-    const users = await getUsers();
-    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+    if (existing.length > 0) {
       return NextResponse.json(
-        { error: 'User already exists' },
+        { error: "User already exists" },
         { status: 409 }
       );
     }
 
-    const newUser: User = {
-      id: 'user-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
-      email,
-      firstName,
-      lastName,
-      avatar: avatar || '',
-      emailVerified: emailVerified || false,
-      phone: phone || '',
-      role: role || 'customer',
-      password: password || Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lastLogin: null,
-      isActive: isActive ?? true,
-      permissions: permissions || []
-    };
+    const id = 'user-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    const now = new Date().toISOString();
 
-    users.push(newUser);
-    await saveUsers(users);
+    // Handle permissions as PostgreSQL array
+    const permissions = body.permissions || [];
+    let permissionsValue;
+    
+    if (permissions.length === 0) {
+      permissionsValue = '{}';
+    } else {
+      permissionsValue = '{ "' + permissions.join('", "') + '" }';
+    }
 
-    const { password: _, ...userWithoutPassword } = newUser;
-    return NextResponse.json(userWithoutPassword, { status: 201 });
+    const result = await sql`
+      INSERT INTO "User" (
+        id, email, "firstName", "lastName", phone, password, role,
+        "createdAt", "updatedAt", "lastLogin", "isActive", permissions,
+        "emailVerified", avatar
+      ) VALUES (
+        ${id}, ${body.email}, ${body.firstName}, ${body.lastName},
+        ${body.phone || null}, ${body.password}, ${body.role || 'customer'},
+        ${now}, ${now}, null, ${body.isActive ?? true},
+        ${permissionsValue}::text[],
+        ${body.emailVerified || false}, ${body.avatar || ''}
+      )
+      RETURNING id, email, "firstName", "lastName", phone, role, "createdAt", "isActive", permissions
+    `;
+
+    console.log("User created with ID:", result[0].id);
+    return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
-    console.error('Error creating user:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error("Error creating user:", error);
+    return NextResponse.json({ 
+      error: "Failed to create user"
+    }, { status: 500 });
   }
 }
-
-// PUT /api/users – update user
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { id, ...userData } = body;
-    if (!id) {
-      return NextResponse.json(
-        { error: 'User ID required' },
-        { status: 400 }
-      );
-    }
-
-    const users = await getUsers();
-    const index = users.findIndex(u => u.id === id);
-    if (index === -1) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    const updatedUser = { ...users[index], ...userData, updatedAt: new Date().toISOString() };
-    users[index] = updatedUser;
-    await saveUsers(users);
-
-    const { password, ...userWithoutPassword } = updatedUser;
-    return NextResponse.json(userWithoutPassword);
-  } catch (error) {
-    console.error('Error updating user:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE /api/users – delete user
-export async function DELETE(request: NextRequest) {
-  try {
-    const url = new URL(request.url);
-    const id = url.searchParams.get('id');
-    if (!id) {
-      return NextResponse.json(
-        { error: 'User ID required' },
-        { status: 400 }
-      );
-    }
-
-    const users = await getUsers();
-    const filtered = users.filter(u => u.id !== id);
-    if (filtered.length === users.length) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    await saveUsers(filtered);
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-

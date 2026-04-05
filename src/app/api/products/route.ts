@@ -1,50 +1,50 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-import { PRODUCTS as existingProducts } from '@/lib/data/products';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { neon } from '@neondatabase/serverless';
 
-const PRODUCTS_FILE_PATH = path.join(process.cwd(), 'src', 'lib', 'data', 'products.ts');
+const sql = neon(process.env.DATABASE_URL!, { fetchOptions: { timeout: 30000 } });
 
+// GET all products
 export async function GET() {
   try {
-    return NextResponse.json(existingProducts);
+    console.log("GET /api/products - fetching all products");
+    const products = await sql`SELECT * FROM "Product" ORDER BY id`;
+    console.log(`Found ${products.length} products`);
+    return NextResponse.json(products);
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch products' },
-      { status: 500 }
-    );
+    console.error("Error fetching products:", error);
+    return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+// POST new product
+export async function POST(request: NextRequest) {
   try {
-    const products = await request.json();
+    const body = await request.json();
+    console.log("Creating product with data:", body);
     
-    // Validate that products is an array
-    if (!Array.isArray(products)) {
-      return NextResponse.json(
-        { error: 'Products must be an array' },
-        { status: 400 }
-      );
-    }
-
-    // Create the updated file content
-    const fileContent = `import { Product } from '@/types';\n\nexport const PRODUCTS: Product[] = ${JSON.stringify(products, null, 2)};\n`;
+    const result = await sql`
+      INSERT INTO "Product" (
+        title, brand, spec, price, image, category, warranty,
+        "installationTime", capacity, "compatibleWith", features,
+        "inStock", inventory, "systemType"
+      ) VALUES (
+        ${body.title}, ${body.brand}, ${body.spec}, ${body.price}, ${body.image},
+        ${body.category}, ${body.warranty}, ${body.installationTime || "1-2 days"},
+        ${body.capacity || "N/A"}, 
+        ${JSON.stringify(body.compatibleWith || [])},
+        ${JSON.stringify(body.features || [])}, 
+        ${body.inStock}, ${body.inventory},
+        ${body.systemType || "basic"}
+      )
+      RETURNING *
+    `;
     
-    // Write to file
-    await fs.writeFile(PRODUCTS_FILE_PATH, fileContent, 'utf-8');
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Products updated successfully',
-      count: products.length 
-    });
-    
+    console.log("Product created with ID:", result[0].id);
+    return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
-    console.error('Failed to update products:', error);
-    return NextResponse.json(
-      { error: 'Failed to update products' },
-      { status: 500 }
-    );
+    console.error("Error creating product:", error);
+    return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
   }
 }
+
+

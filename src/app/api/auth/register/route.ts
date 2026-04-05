@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { User } from '@/lib/data/users'; // Use server-side User type
-import { getUsers, saveUsers, findUserByEmail } from '@/lib/data/usersService';
+import { neon } from '@neondatabase/serverless';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,41 +16,50 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await findUserByEmail(email);
-    if (existingUser) {
+    const existing = await sql`
+      SELECT id FROM "User" WHERE email = ${email}
+    `;
+
+    if (existing.length > 0) {
       return NextResponse.json(
         { error: 'User already exists' },
         { status: 409 }
       );
     }
 
-    const users = await getUsers();
+    const id = 'user-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    const now = new Date().toISOString();
 
-    // Create new user object
-    const newUser: User = {
-      id: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-      email,
-      firstName,
-      lastName,
-      avatar: '',
-      emailVerified: false,
-      phone: phone || '',
-      role: 'customer',
-      password, // Now TypeScript knows this field exists
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-      isActive: true,
-      permissions: ['orders:read', 'orders:create', 'profile:read', 'profile:update']
-    };
+    // Default customer permissions as PostgreSQL array
+    const customerPermissions = [
+      'orders:read',
+      'orders:create',
+      'profile:read',
+      'profile:update'
+    ];
+    
+    // Format as PostgreSQL array literal
+    const permissionsSql = '{ "orders:read", "orders:create", "profile:read", "profile:update" }';
 
-    users.push(newUser);
-    await saveUsers(users);
+    const result = await sql`
+      INSERT INTO "User" (
+        id, email, "firstName", "lastName", phone, password, role,
+        "createdAt", "updatedAt", "lastLogin", "isActive", permissions,
+        "emailVerified", avatar
+      ) VALUES (
+        ${id}, ${email}, ${firstName}, ${lastName},
+        ${phone || null}, ${password}, 'customer',
+        ${now}, ${now}, ${now}, true,
+        ${permissionsSql}::text[],
+        false, ''
+      )
+      RETURNING id, email, "firstName", "lastName", phone, role, "createdAt", "isActive"
+    `;
 
-    // Return user without password
-    const { password: _, ...userWithoutPassword } = newUser;
-
-    return NextResponse.json({ user: userWithoutPassword }, { status: 201 });
+    const newUser = result[0];
+    console.log("User registered with ID:", newUser.id);
+    
+    return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(

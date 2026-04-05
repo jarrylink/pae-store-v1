@@ -22,6 +22,30 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit }) 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Get permissions based on selected role
+  const getPermissionsForRole = (role: string): string[] => {
+    switch (role) {
+      case 'superadmin':
+        return [
+          'users:create', 'users:read', 'users:update', 'users:delete',
+          'products:create', 'products:read', 'products:update', 'products:delete',
+          'orders:create', 'orders:read', 'orders:update', 'orders:delete',
+          'analytics:read', 'settings:manage', 'system:admin'
+        ];
+      case 'staff':
+        return [
+          'products:read', 'products:update',
+          'orders:read', 'orders:update',
+          'users:read', 'analytics:read'
+        ];
+      default: // customer
+        return [
+          'orders:read', 'orders:create',
+          'profile:read', 'profile:update'
+        ];
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
@@ -49,9 +73,15 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit }) 
       setErrors(validationErrors);
       return;
     }
+    
     setLoading(true);
     try {
-      await onSubmit(formData);
+      // Add permissions based on selected role
+      const userData = {
+        ...formData,
+        permissions: getPermissionsForRole(formData.role)
+      };
+      await onSubmit(userData);
     } catch (error) {
       console.error('Error creating user:', error);
     } finally {
@@ -170,6 +200,9 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit }) 
                 <option value="staff">Staff</option>
                 <option value="superadmin">Super Admin</option>
               </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Permissions will be automatically set based on role
+              </p>
             </div>
             <div className="flex items-center">
               <input
@@ -209,4 +242,3 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit }) 
 };
 
 export default CreateUserModal;
-

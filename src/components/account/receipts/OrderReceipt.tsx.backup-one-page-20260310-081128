@@ -1,0 +1,554 @@
+﻿'use client';
+
+import React, { useEffect } from 'react';
+import { Order } from '@/types/auth';
+import QRCode from 'qrcode';
+
+interface OrderReceiptProps {
+  order: Order;
+  onClose: () => void;
+}
+
+const OrderReceipt: React.FC<OrderReceiptProps> = ({ order, onClose }) => {
+  useEffect(() => {
+    generateReceiptWindow();
+  }, []);
+
+  const formatDate = (date: string | Date) => {
+    if (!date) return 'N/A';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const numberToWords = (num: number): string => {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+    const convertLessThanThousand = (n: number): string => {
+      if (n === 0) return '';
+      
+      let result = '';
+      
+      if (n >= 100) {
+        result += ones[Math.floor(n / 100)] + ' Hundred ';
+        n %= 100;
+      }
+      
+      if (n >= 20) {
+        result += tens[Math.floor(n / 20)] + ' ';
+        n %= 20;
+      } else if (n >= 10) {
+        result += teens[n - 10] + ' ';
+        n = 0;
+      }
+      
+      if (n > 0) {
+        result += ones[n] + ' ';
+      }
+      
+      return result;
+    };
+
+    if (num === 0) return 'Zero';
+
+    let words = '';
+    let n = Math.floor(num);
+    
+    if (n >= 1000000) {
+      words += convertLessThanThousand(Math.floor(n / 1000000)) + 'Million ';
+      n %= 1000000;
+    }
+    
+    if (n >= 1000) {
+      words += convertLessThanThousand(Math.floor(n / 1000)) + 'Thousand ';
+      n %= 1000;
+    }
+    
+    words += convertLessThanThousand(n);
+    
+    return words.trim() + ' Naira Only';
+  };
+
+  const generateReceiptWindow = async () => {
+    // Calculate installation items and fee
+    const installationItems = order.items.filter((item: any) => {
+      const installationKeywords = ['inverter', 'solar panel', 'battery', 'generator', 'system', 'complete kit', 'off-grid'];
+      const title = item.title?.toLowerCase() || '';
+      return installationKeywords.some(keyword => title.includes(keyword));
+    });
+    
+    const installationFee = installationItems.reduce((sum, item) => {
+      return sum + (item.price * item.quantity * 0.1); // 10% installation fee
+    }, 0);
+
+    const subtotal = order.subtotal || order.total;
+    const totalWithInstallation = subtotal + installationFee;
+
+    // Generate QR Code
+    let qrCodeUrl = '';
+    try {
+      const verificationData = {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        date: order.createdAt,
+        total: totalWithInstallation,
+        status: order.status,
+        installationFee: installationFee
+      };
+      qrCodeUrl = await QRCode.toDataURL(JSON.stringify(verificationData), {
+        width: 120,
+        margin: 1,
+        color: {
+          dark: '#1a2a8a',
+          light: '#FFFFFF'
+        }
+      });
+    } catch (err) {
+      console.error('Error generating QR code:', err);
+    }
+
+    // Create receipt HTML
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Power Afric Energy Services Receipt - Order #${order.orderNumber || order.id}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          @page {
+            size: A4;
+            margin: 0;
+          }
+
+          body {
+            margin: 0;
+            background: #e5e7eb;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+          }
+
+          /* A4 SHEET */
+          .a4 {
+            width: 210mm;
+            min-height: 297mm;
+            position: relative;
+            margin: 0 auto;
+            background: white;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+          }
+
+          /* LOGO REPEAT PATTERN */
+          .logo-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: url("https://res.cloudinary.com/djkudkxmx/image/upload/v1762182244/logo-blue_yns0bj.png");
+            background-size: 60px auto;
+            background-position: 0 0;
+            background-repeat: repeat;
+            opacity: 0.1;
+          }
+
+          /* GRADIENT BORDER WRAPPER */
+          .inner-paper-wrapper {
+            position: absolute;
+            width: 90%;
+            height: 95%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 20px;
+            background: linear-gradient(to right, #07A500, #3E4095);
+            padding: 15px;
+          }
+
+          /* INNER PAPER */
+          .inner-paper {
+            width: 100%;
+            height: 100%;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 2rem;
+            box-sizing: border-box;
+            overflow-y: auto;
+          }
+
+          /* Company Header */
+          .company-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+          }
+
+          .company-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1a2a8a;
+          }
+
+          .company-address, .company-contact {
+            font-size: 10px;
+            color: #4b5563;
+          }
+
+          /* Cash Receipt Title */
+          .cash-receipt-title {
+            background: linear-gradient(to right, #07A500, #3E4095);
+            color: white;
+            font-weight: bold;
+            padding: 0.5rem 1.5rem;
+            border-radius: 5px;
+            display: inline-block;
+          }
+
+          /* Receipt fields styling */
+          .receipt-line {
+            border-bottom: 1px solid #9ca3af;
+            min-height: 1.8rem;
+            margin-bottom: 0.75rem;
+          }
+
+          .checkbox-group {
+            display: flex;
+            gap: 1.5rem;
+            margin: 0.5rem 0;
+          }
+
+          .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+          }
+
+          th, td {
+            border: 1px solid #d1d5db;
+            padding: 0.5rem;
+            text-align: left;
+          }
+
+          th {
+            background: #f3f4f6;
+            font-weight: 600;
+          }
+
+          .installation-badge {
+            background: #dbeafe;
+            color: #1e40af;
+            font-size: 10px;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            margin-left: 0.5rem;
+          }
+
+          .installation-row {
+            background: #eff6ff;
+          }
+
+          .total-row {
+            font-weight: bold;
+            font-size: 14px;
+          }
+
+          .grand-total {
+            color: #1a2a8a;
+            font-size: 16px;
+          }
+
+          .installation-summary {
+            background: #eff6ff;
+            border-left: 4px solid #3e4095;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+          }
+
+          .footer {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 10px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 1rem;
+          }
+
+          @media print {
+            body {
+              background: white;
+              padding: 0;
+            }
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print flex justify-end gap-2 mb-4 sticky top-4 z-10">
+          <button onclick="window.print()" class="px-6 py-3 bg-[#1a2a8a] text-white rounded-lg hover:bg-[#0f1a66] transition-colors flex items-center shadow-lg">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print Receipt
+          </button>
+          <button onclick="window.close()" class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors shadow-lg">
+            Close
+          </button>
+        </div>
+
+        <div class="a4">
+          <div class="logo-pattern"></div>
+
+          <div class="inner-paper-wrapper">
+            <div class="inner-paper">
+              <!-- Company Header -->
+              <div class="company-header">
+                <img src="https://res.cloudinary.com/djkudkxmx/image/upload/v1762182244/logo-blue_yns0bj.png" alt="Logo" class="w-20 h-auto">
+                <div>
+                  <div class="company-title">POWER AFRIC ENERGY SERVICES LTD</div>
+                  <div class="company-address">No. B3 & B4 Khalil Rahman Shopping Complex, GRA. Katsina State - Nigeria.</div>
+                  <div class="company-contact">08033666041 • 08100360057 • sales@powerafric.ng • www.powerafric.ng</div>
+                </div>
+              </div>
+
+              <!-- Cash Receipt Title & Number -->
+              <div class="flex justify-between items-center mt-4 mb-6">
+                <div class="cash-receipt-title">CASH RECEIPT</div>
+                <div class="font-semibold text-gray-700">
+                  Receipt No.: PAE/FDCR/${order.orderNumber || order.id}/${new Date(order.createdAt).getFullYear()}
+                </div>
+              </div>
+
+              <!-- Customer Information -->
+              <div class="space-y-4 mb-6">
+                <div>
+                  <p class="font-bold text-gray-700">Name:</p>
+                  <div class="receipt-line">${order.shippingAddress?.fullName || order.user?.fullName || 'N/A'}</div>
+                </div>
+
+                <div>
+                  <p class="font-bold text-gray-700">Address:</p>
+                  <div class="receipt-line">${order.shippingAddress ? `${order.shippingAddress.street || ''}, ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''}` : 'N/A'}</div>
+                </div>
+
+                <div>
+                  <p class="font-bold text-gray-700">Phone:</p>
+                  <div class="receipt-line">${order.shippingAddress?.phone || order.user?.phone || 'N/A'}</div>
+                </div>
+              </div>
+
+              <!-- Items Table -->
+              <div class="mb-6">
+                <h3 class="font-bold text-gray-700 mb-2">Items Purchased:</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Qty</th>
+                      <th>Unit Price</th>
+                      <th>Installation</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${order.items.map((item: any) => {
+                      const needsInstallation = installationItems.some(i => i.id === item.id);
+                      const itemTotal = item.price * item.quantity;
+                      return `
+                        <tr ${needsInstallation ? 'class="installation-row"' : ''}>
+                          <td>
+                            ${item.title}
+                            ${needsInstallation ? '<span class="installation-badge">Installation Required</span>' : ''}
+                          </td>
+                          <td>${item.quantity}</td>
+                          <td>₦${item.price.toLocaleString()}</td>
+                          <td>${needsInstallation ? '10%' : '-'}</td>
+                          <td>₦${itemTotal.toLocaleString()}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                    
+                    ${installationFee > 0 ? `
+                      <tr class="installation-row">
+                        <td colspan="4" class="text-right font-bold text-blue-800">Installation Services Fee (10%):</td>
+                        <td class="font-bold text-blue-800">₦${installationFee.toLocaleString()}</td>
+                      </tr>
+                    ` : ''}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4" class="text-right font-bold">Subtotal (Items):</td>
+                      <td>₦${subtotal.toLocaleString()}</td>
+                    </tr>
+                    ${installationFee > 0 ? `
+                      <tr>
+                        <td colspan="4" class="text-right font-bold text-blue-800">Installation Fee:</td>
+                        <td class="text-blue-800">₦${installationFee.toLocaleString()}</td>
+                      </tr>
+                    ` : ''}
+                    ${order.shipping > 0 ? `
+                      <tr>
+                        <td colspan="4" class="text-right font-bold">Shipping:</td>
+                        <td>₦${order.shipping.toLocaleString()}</td>
+                      </tr>
+                    ` : ''}
+                    ${order.tax > 0 ? `
+                      <tr>
+                        <td colspan="4" class="text-right font-bold">Tax:</td>
+                        <td>₦${order.tax.toLocaleString()}</td>
+                      </tr>
+                    ` : ''}
+                    <tr class="total-row">
+                      <td colspan="4" class="text-right font-bold text-lg">GRAND TOTAL:</td>
+                      <td class="grand-total">₦${totalWithInstallation.toLocaleString()}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <!-- Installation Summary -->
+              ${installationItems.length > 0 ? `
+                <div class="installation-summary">
+                  <h4 class="font-bold text-blue-800 mb-2">📋 Installation Summary</h4>
+                  <p class="text-sm text-gray-700 mb-2">
+                    The following items require professional installation (10% fee applies):
+                  </p>
+                  <ul class="list-disc list-inside text-sm text-gray-700">
+                    ${installationItems.map(item => `
+                      <li>${item.title} (Qty: ${item.quantity}) - ₦${(item.price * item.quantity * 0.1).toLocaleString()} installation fee</li>
+                    `).join('')}
+                  </ul>
+                  <p class="text-sm text-gray-700 mt-2">
+                    <strong>Note:</strong> Installation will be scheduled within 3-5 business days after delivery.
+                  </p>
+                </div>
+              ` : ''}
+
+              <!-- Amount Received Section -->
+              <div class="mt-6">
+                <p><strong>Amount Received:</strong> ₦${totalWithInstallation.toLocaleString()}</p>
+                <div class="receipt-line"></div>
+                
+                <p><strong>(In Words):</strong></p>
+                <div class="receipt-line italic">${numberToWords(totalWithInstallation)}</div>
+
+                <p><strong>Payment Purpose / Description:</strong> Purchase of Solar Equipment</p>
+                <div class="receipt-line"></div>
+
+                <p><strong>Payment Method:</strong></p>
+                <div class="checkbox-group">
+                  <div class="checkbox-item">
+                    <input type="checkbox" ${order.paymentMethod === 'cash' ? 'checked' : ''} disabled> Cash
+                  </div>
+                  <div class="checkbox-item">
+                    <input type="checkbox" ${order.paymentMethod === 'bank_transfer' ? 'checked' : ''} disabled> Bank Transfer
+                  </div>
+                  <div class="checkbox-item">
+                    <input type="checkbox" ${order.paymentMethod === 'cheque' ? 'checked' : ''} disabled> Cheque
+                  </div>
+                  <div class="checkbox-item">
+                    <input type="checkbox" ${order.paymentMethod === 'pos' ? 'checked' : ''} disabled> POS
+                  </div>
+                </div>
+              </div>
+
+              <!-- Received By Section -->
+              <div class="grid grid-cols-2 gap-8 mt-6">
+                <div>
+                  <p><strong>Received By:</strong></p>
+                  <div class="receipt-line"></div>
+                  <div class="receipt-line"></div>
+                </div>
+                <div>
+                  <p><strong>Authorized Signature:</strong></p>
+                  <div class="receipt-line"></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-8 mt-4">
+                <div>
+                  <p><strong>Name:</strong> Power Afric Sales Team</p>
+                </div>
+                <div>
+                  <p><strong>Date:</strong> ${formatDate(order.createdAt)}</p>
+                </div>
+              </div>
+
+              <!-- QR Code and Verification -->
+              <div class="flex justify-between items-end mt-8">
+                <div class="text-xs text-gray-500">
+                  <p>This is a computer-generated receipt. No signature required.</p>
+                  <p>For verification, scan the QR code or visit www.powerafric.ng/verify</p>
+                  ${installationFee > 0 ? '<p class="text-blue-600 mt-1">✓ Installation fee included in total</p>' : ''}
+                </div>
+                ${qrCodeUrl ? `
+                  <div class="text-center">
+                    <img src="${qrCodeUrl}" alt="QR Code" class="w-24 h-24" />
+                    <p class="text-xs text-gray-500 mt-1">Scan to verify</p>
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- Footer -->
+              <div class="footer">
+                <p>Thank you for choosing Power Afric Energy Services Ltd. We power your world with sustainable energy.</p>
+                ${installationFee > 0 ? '<p class="text-blue-600 mt-1">🔧 Professional installation included with your purchase</p>' : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          // Auto-print when ready (optional - remove if you don't want auto-print)
+          // window.onload = function() { setTimeout(() => window.print(), 500); }
+        </script>
+      </body>
+      </html>
+    `;
+
+    // Open in new window with proper dimensions
+    const receiptWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes,toolbar=yes,menubar=yes,location=yes');
+    if (receiptWindow) {
+      receiptWindow.document.write(receiptHTML);
+      receiptWindow.document.close();
+      receiptWindow.focus();
+    } else {
+      alert('Please allow pop-ups to view the receipt');
+    }
+
+    // Close the modal in the main window
+    onClose();
+  };
+
+  // This component now just triggers the new window and shows a loading state
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a2a8a] mx-auto mb-4"></div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Opening Receipt</h3>
+        <p className="text-gray-600 mb-4">Your receipt is opening in a new window...</p>
+        <p className="text-sm text-gray-500">If the window doesn't open, please check your pop-up blocker.</p>
+        <button
+          onClick={onClose}
+          className="mt-6 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default OrderReceipt;

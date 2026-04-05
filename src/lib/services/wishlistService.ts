@@ -95,7 +95,7 @@ class WishlistService {
   // Toggle wishlist item
   async toggleWishlistItem(userId: string, productId: number): Promise<{ added: boolean; message: string }> {
     const inWishlist = await this.checkInWishlist(userId, productId);
-    
+
     if (inWishlist) {
       await this.removeFromWishlist(userId, productId);
       return { added: false, message: 'Removed from wishlist' };
@@ -107,4 +107,3 @@ class WishlistService {
 }
 
 export const wishlistService = new WishlistService();
-

@@ -1,5 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { getUsers, saveUsers, findUserByEmail } from '@/lib/data/usersService';
+import { neon } from '@neondatabase/serverless';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -10,27 +12,23 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
     }
 
-    const users = await getUsers();
-    const userIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+    const result = await sql`
+      UPDATE "User"
+      SET
+        "firstName" = COALESCE(${firstName}, "firstName"),
+        "lastName" = COALESCE(${lastName}, "lastName"),
+        phone = COALESCE(${phone}, phone),
+        avatar = COALESCE(${avatar}, avatar),
+        "updatedAt" = NOW()
+      WHERE email = ${email}
+      RETURNING id, email, "firstName", "lastName", phone, avatar, role, "isActive", "createdAt", "updatedAt"
+    `;
 
-    if (userIndex === -1) {
+    if (result.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Update only allowed fields – never change email
-    users[userIndex] = {
-      ...users[userIndex],
-      firstName: firstName ?? users[userIndex].firstName,
-      lastName: lastName ?? users[userIndex].lastName,
-      phone: phone ?? users[userIndex].phone,
-      avatar: avatar ?? users[userIndex].avatar,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await saveUsers(users);
-
-    const { password, ...userWithoutPassword } = users[userIndex];
-    return NextResponse.json({ user: userWithoutPassword });
+    return NextResponse.json({ user: result[0] });
   } catch (error) {
     console.error('Error updating profile:', error);
     return NextResponse.json(
