@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Product } from '@/types';
 import ProductCard from '@/components/ui/cards/ProductCard';
 import Header from '@/components/layout/header/Header';
+import StickySearchPanel from '@/components/features/search/StickySearchPanel';
 import Footer from '@/components/layout/footer/Footer';
 import CartDrawer from '@/components/features/cart/CartDrawer';
 import { useCartStore } from '@/lib/stores/cartStore';
@@ -247,7 +248,7 @@ function ProductsContent() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <Header />
+      <Header />      {/* Sticky Search Panel */}      <StickySearchPanel />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with Title and Controls */}
@@ -627,6 +628,7 @@ export default function ProductsPage() {
     </Suspense>
   );
 }
+
 
 
 

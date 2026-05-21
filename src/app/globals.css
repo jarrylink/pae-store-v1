@@ -417,11 +417,7 @@ input:focus, textarea:focus, select:focus {
 
 /* Mobile viewport fixes */
 @media (max-width: 768px) {
-  body {
-    overflow-x: hidden;
-    width: 100%;
-    position: relative;
-  }
+  body { /* position: relative removed - fixes sticky header */ }
   
   .container, .max-w-7xl, .max-w-full {
     padding-left: 1rem !important;
@@ -442,3 +438,4 @@ header, nav, .sticky, .fixed {
 .dropdown-menu {
   z-index: 9999 !important;
 }
+
