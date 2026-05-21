@@ -439,3 +439,23 @@ header, nav, .sticky, .fixed {
   z-index: 9999 !important;
 }
 
+
+/* Mobile sticky fix - ensure header stays on mobile */
+.sticky,
+header.sticky,
+[class*="sticky"] {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+}
+
+/* For iOS Safari specific fix */
+@supports (-webkit-touch-callout: none) {
+  header.sticky {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+}
