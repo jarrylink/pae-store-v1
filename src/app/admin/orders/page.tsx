@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import {
-  Search, Eye, Truck, CheckCircle, XCircle, Clock, User, 
-  Mail, Phone, MapPin, Package, DollarSign, AlertCircle, 
+  Search, Eye, Truck, CheckCircle, XCircle, Clock, User,
+  Mail, Phone, MapPin, Package, DollarSign, AlertCircle,
   RefreshCw, Users
 } from 'lucide-react';
 
@@ -45,6 +45,7 @@ export default function AdminOrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
   const [assigningStaff, setAssigningStaff] = useState<number | null>(null);
 
   useEffect(() => {
@@ -57,7 +58,6 @@ export default function AdminOrdersPage() {
       setLoading(true);
       const response = await fetch('/api/admin/orders');
       const data = await response.json();
-    console.log('📦 Staff API response:', data);
       if (data.success) {
         setOrders(data.orders || []);
       } else {
@@ -72,16 +72,11 @@ export default function AdminOrdersPage() {
   };
 
   const fetchStaff = async () => {
-    console.log('🔍 Fetching staff from API...');
     try {
       const response = await fetch('/api/admin/staff');
       const data = await response.json();
-    console.log('📦 Staff API response:', data);
       if (data.success) {
-        console.log('✅ Setting staff:', data.staff);
-    console.log('✅ Setting staff in orders page:', data.staff);
-console.log('✅ Setting staff in orders page:', data.staff);
-setStaff(data.staff || []);
+        setStaff(data.staff || []);
       }
     } catch (err) {
       console.error('Failed to fetch staff:', err);
@@ -90,13 +85,13 @@ setStaff(data.staff || []);
 
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
+      setUpdatingStatus(orderId);
       const response = await fetch(`/api/admin/orders?id=${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       const data = await response.json();
-    console.log('📦 Staff API response:', data);
       if (data.success) {
         fetchOrders();
       } else {
@@ -105,6 +100,8 @@ setStaff(data.staff || []);
     } catch (err) {
       console.error('Error updating order:', err);
       alert('Error updating order');
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
@@ -117,7 +114,6 @@ setStaff(data.staff || []);
         body: JSON.stringify({ orderId, staffId })
       });
       const data = await response.json();
-    console.log('📦 Staff API response:', data);
       if (data.success) {
         alert(`✅ Order assigned to staff successfully!`);
         fetchOrders();
@@ -264,9 +260,7 @@ setStaff(data.staff || []);
               {filteredOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono font-medium text-gray-900">
-                      #{order.orderNumber}
-                    </span>
+                    <span className="text-sm font-mono font-medium text-gray-900">#{order.orderNumber}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm">
@@ -275,22 +269,27 @@ setStaff(data.staff || []);
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(order.total)}
-                    </span>
+                    <span className="text-sm font-semibold text-gray-900">{formatCurrency(order.total)}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={order.status}
                       onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                      disabled={updatingStatus === order.id}
                       className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)} focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     >
-                      <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="processing">Processing</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
+                      {updatingStatus === order.id ? (
+                        <option disabled>⟳ Updating...</option>
+                      ) : (
+                        <>
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="processing">Processing</option>
+                          <option value="shipped">Shipped</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </>
+                      )}
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -301,17 +300,21 @@ setStaff(data.staff || []);
                         disabled={assigningStaff === order.id}
                         className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]"
                       >
-                        <option value="">Unassigned</option>
-                        {staff.map((staffMember) => (
-                          <option key={staffMember.id} value={staffMember.id}>
-                            {staffMember.name} ({staffMember.activeOrders} active)
-                          </option>
-                        ))}
+                        {assigningStaff === order.id ? (
+                          <option disabled>⟳ Assigning...</option>
+                        ) : (
+                          <>
+                            <option value="">Unassigned</option>
+                            {staff.map((staffMember) => (
+                              <option key={staffMember.id} value={staffMember.id}>
+                                {staffMember.name} ({staffMember.activeOrders} active)
+                              </option>
+                            ))}
+                          </>
+                        )}
                       </select>
                     ) : (
-                      <span className="text-sm text-gray-600">
-                        {order.assignedStaffName || 'Unassigned'}
-                      </span>
+                      <span className="text-sm text-gray-600">{order.assignedStaffName || 'Unassigned'}</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -349,10 +352,7 @@ setStaff(data.staff || []);
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900">Order Details</h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
@@ -399,6 +399,14 @@ setStaff(data.staff || []);
                     <Phone className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-700">{selectedOrder.customerPhone || 'N/A'}</span>
                   </div>
+                  {selectedOrder.shippingAddress && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-700">
+                        {selectedOrder.shippingAddress.street}, {selectedOrder.shippingAddress.city}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -434,14 +442,21 @@ setStaff(data.staff || []);
                       assignOrderToStaff(selectedOrder.id, e.target.value);
                       setShowModal(false);
                     }}
+                    disabled={assigningStaff === selectedOrder.id}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Unassigned</option>
-                    {staff.map((staffMember) => (
-                      <option key={staffMember.id} value={staffMember.id}>
-                        {staffMember.name} ({staffMember.activeOrders} active orders)
-                      </option>
-                    ))}
+                    {assigningStaff === selectedOrder.id ? (
+                      <option disabled>⟳ Assigning...</option>
+                    ) : (
+                      <>
+                        <option value="">Unassigned</option>
+                        {staff.map((staffMember) => (
+                          <option key={staffMember.id} value={staffMember.id}>
+                            {staffMember.name} ({staffMember.activeOrders} active orders)
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
               )}
@@ -452,7 +467,3 @@ setStaff(data.staff || []);
     </div>
   );
 }
-
-
-
-

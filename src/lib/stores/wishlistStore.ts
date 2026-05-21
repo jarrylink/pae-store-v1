@@ -1,22 +1,20 @@
 ﻿import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { wishlistService } from '@/lib/services/wishlistService';
-import { useAuthStore } from '@/lib/stores/authStore';
 
-export interface WishlistState {
-  items: Array<{
-    id: string;
-    productId: number;
-    addedAt: string;
-  }>;
+interface WishlistItem {
+  id: string;
+  productId: number;
+  addedAt: string;
+}
+
+interface WishlistState {
+  items: WishlistItem[];
   loading: boolean;
   initialized: boolean;
-  lastUserId: string | null; // Track which user's data is loaded
-
-  // Actions
+  lastUserId: string | null;
   initializeWishlist: (userId: string) => Promise<void>;
-  addToWishlist: (productId: number) => Promise<void>;
-  removeFromWishlist: (productId: number) => Promise<void>;
+  addToWishlist: (userId: string, productId: number) => Promise<boolean>;
+  removeFromWishlist: (userId: string, productId: number) => Promise<boolean>;
   isInWishlist: (productId: number) => boolean;
   clearWishlist: () => void;
 }
@@ -30,75 +28,74 @@ export const useWishlistStore = create<WishlistState>()(
       lastUserId: null,
 
       initializeWishlist: async (userId: string) => {
-        console.log('initializeWishlist called for user:', userId, 'current lastUserId:', get().lastUserId);
-        // If already initialized for this user, skip
         if (get().initialized && get().lastUserId === userId) {
-          console.log('Already initialized for this user, skipping');
           return;
         }
+        
         set({ loading: true });
         try {
-          console.log('Fetching wishlist from API for user:', userId);
-          const response = await wishlistService.getWishlist(userId);
-          console.log('Wishlist API response:', response);
+          const response = await fetch(`/api/wishlist?userId=${userId}`);
+          const data = await response.json();
+          
           set({
-            items: response.data?.items || [],
+            items: data.items || [],
             initialized: true,
             lastUserId: userId
           });
-          console.log('Wishlist initialized with items:', response.data?.items);
         } catch (error) {
           console.error('Failed to initialize wishlist:', error);
-          set({ items: [], initialized: true, lastUserId: userId });
         } finally {
           set({ loading: false });
         }
       },
 
-      addToWishlist: async (productId: number) => {
-        console.log('addToWishlist called for product:', productId);
-        const { user } = useAuthStore.getState();
-        if (!user) {
-          throw new Error('User must be authenticated to add to wishlist');
+      addToWishlist: async (userId: string, productId: number) => {
+        const { items } = get();
+        
+        if (items.some(item => item.productId === productId)) {
+          return false;
         }
-
-        set({ loading: true });
+        
         try {
-          await wishlistService.addToWishlist(user.id, productId);
-          // Re-fetch wishlist to ensure consistency
-          const response = await wishlistService.getWishlist(user.id);
-          set({
-            items: response.data?.items || [],
-            lastUserId: user.id,
-            loading: false
+          const response = await fetch('/api/wishlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, productId })
           });
-          console.log('After add, items now:', response.data?.items);
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            set((state) => ({
+              items: [...state.items, { id: `local_${productId}`, productId, addedAt: new Date().toISOString() }]
+            }));
+            return true;
+          }
+          return false;
         } catch (error) {
-          set({ loading: false });
-          throw error;
+          console.error('Add to wishlist error:', error);
+          return false;
         }
       },
 
-      removeFromWishlist: async (productId: number) => {
-        console.log('removeFromWishlist called for product:', productId);
-        const { user } = useAuthStore.getState();
-        if (!user) {
-          throw new Error('User must be authenticated to remove from wishlist');
-        }
-
-        set({ loading: true });
+      removeFromWishlist: async (userId: string, productId: number) => {
         try {
-          await wishlistService.removeFromWishlist(user.id, productId);
-          const response = await wishlistService.getWishlist(user.id);
-          set({
-            items: response.data?.items || [],
-            lastUserId: user.id,
-            loading: false
+          const response = await fetch(`/api/wishlist?userId=${userId}&productId=${productId}`, {
+            method: 'DELETE'
           });
-          console.log('After remove, items now:', response.data?.items);
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            set((state) => ({
+              items: state.items.filter(item => item.productId !== productId)
+            }));
+            return true;
+          }
+          return false;
         } catch (error) {
-          set({ loading: false });
-          throw error;
+          console.error('Remove from wishlist error:', error);
+          return false;
         }
       },
 
@@ -108,34 +105,18 @@ export const useWishlistStore = create<WishlistState>()(
 
       clearWishlist: () => {
         set({ items: [], initialized: false, lastUserId: null });
-      }
+      },
     }),
     {
       name: 'wishlist-storage',
-      storage: createJSONStorage(() => ({
-        getItem: (name) => {
-          const { user } = useAuthStore.getState();
-          if (!user) return null;
-          const key = `${name}-${user.id}`;
-          const value = localStorage.getItem(key);
-          console.log('Storage getItem:', key, value);
-          return value;
-        },
-        setItem: (name, value) => {
-          const { user } = useAuthStore.getState();
-          if (!user) return;
-          const key = `${name}-${user.id}`;
-          console.log('Storage setItem:', key, value);
-          localStorage.setItem(key, value);
-        },
-        removeItem: (name) => {
-          const { user } = useAuthStore.getState();
-          if (!user) return;
-          const key = `${name}-${user.id}`;
-          console.log('Storage removeItem:', key);
-          localStorage.removeItem(key);
-        },
-      })),
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ 
+        items: state.items,
+        initialized: state.initialized,
+        lastUserId: state.lastUserId 
+      }),
     }
   )
 );
+
+

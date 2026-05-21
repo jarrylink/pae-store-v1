@@ -1,7 +1,8 @@
 ﻿'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchStore } from '@/lib/stores/searchStore';
+import { categoryService } from '@/lib/services/categoryService';
 
 const StickySearchPanel: React.FC = () => {
   const {
@@ -12,17 +13,50 @@ const StickySearchPanel: React.FC = () => {
     clearFilters
   } = useSearchStore();
 
+  const [categories, setCategories] = useState<Array<{id: string, name: string, slug: string}>>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
   const hasActiveFilters = searchQuery || selectedCategory !== 'all';
 
-  const quickSearches = ['Solar 300W', 'Inverter 5KVA', 'Battery 100AH', 'Complete Kit'];
+  const quickSearches = ['Panel 650W', 'Inverter 5KVA', 'Battery 15Kwh'];
+
+  // Load categories from database
+  useEffect(() => {
+    const loadCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        const cats = await categoryService.getAllCategories();
+        setCategories([
+          { id: 'all', name: 'All Categories', slug: 'all' },
+          ...cats.map(c => ({ id: c.slug, name: c.name, slug: c.slug }))
+        ]);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        // Fallback categories
+        setCategories([
+          { id: 'all', name: 'All Categories', slug: 'all' },
+          { id: 'solar-panels', name: 'Solar Panels', slug: 'solar-panels' },
+          { id: 'inverters', name: 'Inverters', slug: 'inverters' },
+          { id: 'batteries', name: 'Batteries', slug: 'batteries' },
+          { id: 'ess', name: 'ESS', slug: 'ess' },
+          { id: 'street-light', name: 'Street Light', slug: 'street-light' },
+          { id: 'accessories', name: 'Accessories', slug: 'accessories' },
+          { id: 'installation', name: 'Installation', slug: 'installation' }
+        ]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    loadCategories();
+  }, []);
 
   return (
     <div className="sticky top-16 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         {/* Main Search Row */}
         <div className="flex items-center gap-4 mb-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
+          {/* Search Input - 70% width */}
+          <div className="relative w-[70%]">
             <input
               type="text"
               value={searchQuery}
@@ -37,18 +71,22 @@ const StickySearchPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Category Filter */}
+          {/* Category Filter - 30% width */}
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent dark:text-white"
+            className="w-[30%] px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent dark:text-white cursor-pointer"
+            disabled={loadingCategories}
           >
-            <option value="all">All Categories</option>
-            <option value="Solar Panel">Solar Panels</option>
-            <option value="Inverter">Inverters</option>
-            <option value="Battery">Batteries</option>
-            <option value="Kit">Kits</option>
-            <option value="Accessory">Accessories</option>
+            {loadingCategories ? (
+              <option value="all">Loading categories...</option>
+            ) : (
+              categories.map((cat) => (
+                <option key={cat.id} value={cat.slug}>
+                  {cat.name}
+                </option>
+              ))
+            )}
           </select>
 
           {/* Clear Filters Button */}
@@ -82,12 +120,12 @@ const StickySearchPanel: React.FC = () => {
             <span className="font-medium">Active filters:</span>
             {searchQuery && (
               <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs">
-                Search: \"{searchQuery}\"
+                Search: "{searchQuery}"
               </span>
             )}
             {selectedCategory !== 'all' && (
               <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded text-xs">
-                Category: {selectedCategory}
+                Category: {categories.find(c => c.slug === selectedCategory)?.name || selectedCategory}
               </span>
             )}
           </div>

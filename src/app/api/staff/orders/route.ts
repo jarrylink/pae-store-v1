@@ -61,8 +61,7 @@ export async function GET(request: NextRequest) {
                 o.total,
                 o.status,
                 o."createdAt",
-                o.items,
-                o."shippingAddress"
+                o.items, o."shippingAddress", o."paymentMethod", o."paymentStatus", o.notes
             FROM "Order" o
             WHERE o."assignedStaffId" = ${staffId}
             ORDER BY o."createdAt" DESC
@@ -100,6 +99,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+    // Add a small delay to show loading state (optional, remove in production)
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // Add a small delay to simulate processing (optional)
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // Add a small delay to simulate processing (optional)
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
         const { orderId, status } = await request.json();
         
@@ -183,3 +188,7 @@ export async function PATCH(request: NextRequest) {
         }, { status: 500 });
     }
 }
+
+
+
+

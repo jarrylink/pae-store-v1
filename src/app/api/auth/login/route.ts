@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password required' },
+        { success: false, error: 'Email and password are required.' },
         { status: 400 }
       );
     }
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (users.length === 0) {
       console.log('❌ User not found:', email);
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { success: false, error: 'Invalid email or password. Please try again.' },
         { status: 401 }
       );
     }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     if (!user.isActive) {
       console.log('❌ User account is disabled:', email);
       return NextResponse.json(
-        { error: 'Account disabled. Contact administrator.' },
+        { success: false, error: 'Your account has been disabled. Please contact support.' },
         { status: 401 }
       );
     }
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     if (!isValidPassword) {
       console.log('❌ Invalid password for:', email);
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { success: false, error: 'Invalid email or password. Please try again.' },
         { status: 401 }
       );
     }
@@ -64,8 +64,7 @@ export async function POST(request: NextRequest) {
       isActive: user.isActive
     };
     
-    console.log('✅ Login successful for:', email, 'Role:', user.role, 'ID:', user.id);
-    console.log('📝 User data being set in cookie:', JSON.stringify(userData));
+    console.log('✅ Login successful for:', email, 'Role:', user.role);
     
     // Create response with user data
     const response = NextResponse.json({ 
@@ -80,20 +79,17 @@ export async function POST(request: NextRequest) {
       name: 'user_data',
       value: cookieValue,
       httpOnly: false,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
-    
-    console.log('✅ Cookie set for user:', email);
-    console.log('✅ Cookie value length:', cookieValue.length);
     
     return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'An internal error occurred. Please try again later.' },
       { status: 500 }
     );
   }

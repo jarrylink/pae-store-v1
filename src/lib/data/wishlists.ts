@@ -18,6 +18,21 @@ export const WISHLISTS: Wishlist[] = [
         "id": "wl-1772025053201-dk0n4be3t",
         "productId": 5,
         "addedAt": "2026-02-25T13:10:53.201Z"
+      },
+      {
+        "id": "wl-1775744064845-o5vjd79da",
+        "productId": 1,
+        "addedAt": "2026-04-09T14:14:24.845Z"
+      },
+      {
+        "id": "wl-1775744066666-6dnbke139",
+        "productId": 2,
+        "addedAt": "2026-04-09T14:14:26.666Z"
+      },
+      {
+        "id": "wl-1775744211623-3c42jrzw7",
+        "productId": 3,
+        "addedAt": "2026-04-09T14:16:51.623Z"
       }
     ]
   },
@@ -163,5 +178,20 @@ export const WISHLISTS: Wishlist[] = [
   {
     "userId": "user-1774430478256-88da12e",
     "items": []
+  },
+  {
+    "userId": "user-1775571341078-d346vgx",
+    "items": [
+      {
+        "id": "wl-1775571379749-b8qay0qdn",
+        "productId": 7,
+        "addedAt": "2026-04-07T14:16:19.749Z"
+      },
+      {
+        "id": "wl-1775571380696-e3ce0otvz",
+        "productId": 6,
+        "addedAt": "2026-04-07T14:16:20.696Z"
+      }
+    ]
   }
 ];

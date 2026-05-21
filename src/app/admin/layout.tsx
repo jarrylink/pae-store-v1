@@ -5,7 +5,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ParticleBackground from '@/components/features/particles/ParticleBackground';
-import { Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench } from 'lucide-react';
+import {  Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench , Tag } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -41,6 +41,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { name: 'Services', href: '/admin/services', icon: Wrench },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { name: 'Categories', href: '/admin/categories', icon: Tag },
     { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
@@ -168,3 +169,5 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 };
 
 export default AdminLayout;
+
+

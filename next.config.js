@@ -1,7 +1,13 @@
-/** @type {import('next').NextConfig} */
+﻿/** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
+      },
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
@@ -10,9 +16,14 @@ const nextConfig = {
       },
     ],
   },
-  typescript: {
-    ignoreBuildErrors: false,
+  // Enable React strict mode for better development
+  reactStrictMode: true,
+  // Configure Turbopack for development
+  turbopack: {
+    resolveAlias: {
+      // Add any aliases here if needed
+    },
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

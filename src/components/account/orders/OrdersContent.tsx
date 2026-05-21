@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Order } from '@/types/auth';
 import OrderDetails from './OrderDetails';
 import OrderReceipt from '../receipts/OrderReceipt';
+import OrderInvoice from '../receipts/OrderInvoice';
 
 interface OrdersContentProps {
   orders: Order[];
@@ -19,6 +20,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
   onBackToOrders
 }) => {
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -33,6 +35,15 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
       <OrderReceipt
         order={receiptOrder}
         onClose={() => setReceiptOrder(null)}
+      />
+    );
+  }
+
+  if (invoiceOrder) {
+    return (
+      <OrderInvoice
+        order={invoiceOrder}
+        onClose={() => setInvoiceOrder(null)}
       />
     );
   }
@@ -272,6 +283,7 @@ const OrdersContent: React.FC<OrdersContentProps> = ({
             order={order}
             onViewDetails={() => onOrderSelect(String(order.id))}
             onDownloadReceipt={() => setReceiptOrder(order)}
+            onGenerateInvoice={() => setInvoiceOrder(order)}
             onMakePayment={() => setPaymentOrder(order)}
           />
         ))}
@@ -285,8 +297,9 @@ const OrderCard: React.FC<{
   order: Order;
   onViewDetails: () => void;
   onDownloadReceipt: () => void;
+  onGenerateInvoice: () => void;
   onMakePayment?: () => void;
-}> = ({ order, onViewDetails, onDownloadReceipt, onMakePayment }) => {
+}> = ({ order, onViewDetails, onDownloadReceipt, onGenerateInvoice, onMakePayment }) => {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
@@ -329,17 +342,15 @@ const OrderCard: React.FC<{
 
   const handleWhatsAppChat = () => {
     const companyPhoneNumber = '+2348033666041';
-    
-    // Safe check for items
+
     const orderItems = order.items && Array.isArray(order.items) ? order.items : [];
-    
-    const itemsList = orderItems.length > 0 
+
+    const itemsList = orderItems.length > 0
       ? orderItems.map((item: any) =>
           `• ${item.quantity}x ${item.title} - ${formatCurrency(item.price)} each (Total: ${formatCurrency(item.price * item.quantity)})`
         ).join('\n')
       : 'No items available';
 
-    // Format delivery address
     let deliveryAddressText = 'No shipping address provided';
     if (order.shippingAddress) {
       const addr = order.shippingAddress;
@@ -383,22 +394,18 @@ I would like to discuss payment and delivery options for this order.`;
     window.open(`https://wa.me/${companyPhoneNumber}?text=${encodedMessage}`, '_blank');
   };
 
-  // Format shipping display - safe check for items
-  const shippingDisplay = order.shippingAddress 
-    ? `${order.shippingAddress.city || ""}, ${order.shippingAddress.state || ""}`.replace(/^, |, $/g, "") || order.shippingAddress.street || "Address provided" 
+  const shippingDisplay = order.shippingAddress
+    ? `${order.shippingAddress.city || ""}, ${order.shippingAddress.state || ""}`.replace(/^, |, $/g, "") || order.shippingAddress.street || "Address provided"
     : "No address provided";
 
-  // Safe check for items length
   const orderItems = order.items && Array.isArray(order.items) ? order.items : [];
   const itemsCount = orderItems.length;
-
-  // Check if receipt should be available (confirmed, shipped, or delivered)
   const showReceipt = order.status === 'confirmed' || order.status === 'shipped' || order.status === 'delivered';
 
   return (
-    <div className="bg-white dark:bg-gray-700 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-all duration-300">
+    <div className="bg-white dark:bg-gray-700 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-all duration-300">
       {/* Order Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
         <div>
           <div className="flex items-center space-x-4">
             <h4 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -441,7 +448,7 @@ I would like to discuss payment and delivery options for this order.`;
         </div>
       )}
 
-      {/* Order Items Preview - Only show if there are items */}
+      {/* Order Items Preview */}
       {itemsCount > 0 && (
         <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
           <div className="flex items-center space-x-4">
@@ -476,21 +483,29 @@ I would like to discuss payment and delivery options for this order.`;
       )}
 
       {/* Order Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 gap-3">
         <div>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Shipping to: {shippingDisplay}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <button
             onClick={onViewDetails}
             className="px-4 py-2 text-sm font-medium text-[#1a2a8a] dark:text-green-400 hover:text-[#0f1a66] dark:hover:text-green-300 border border-[#1a2a8a] dark:border-green-400 rounded-lg transition-colors"
           >
             View Details
           </button>
-          
-          {/* Download Receipt - Only for confirmed/shipped/delivered orders */}
+
+          {/* Generate Invoice Button */}
+          <button
+            onClick={onGenerateInvoice}
+            className="px-4 py-2 text-sm font-medium text-[#1a2a8a] dark:text-green-400 hover:text-[#0f1a66] dark:hover:text-green-300 border border-[#1a2a8a] dark:border-green-400 rounded-lg transition-colors"
+          >
+            Generate Invoice
+          </button>
+
+          {/* Download Receipt */}
           {showReceipt && (
             <button
               onClick={onDownloadReceipt}
@@ -500,7 +515,7 @@ I would like to discuss payment and delivery options for this order.`;
             </button>
           )}
 
-          {/* Make Payment Button - Only for pending orders */}
+          {/* Make Payment Button */}
           {order.status === 'pending' && onMakePayment && (
             <button
               onClick={onMakePayment}

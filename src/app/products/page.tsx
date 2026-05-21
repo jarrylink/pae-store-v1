@@ -13,6 +13,7 @@ import { useWishlistStore } from '@/lib/stores/wishlistStore';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useNotificationStore } from '@/lib/stores/notificationStore';
 import { formatCurrency } from '@/utils';
+import { categoryService } from '@/lib/services/categoryService';
 
 // Loading component for Suspense fallback
 function ProductsLoading() {
@@ -49,45 +50,52 @@ function ProductsContent() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const categories = [
-    { id: 'all', name: 'All Products', icon: '📦' },
-    { id: 'solar-panels', name: 'Solar Panels', icon: '☀️' },
-    { id: 'inverters', name: 'Inverters', icon: '⚡' },
-    { id: 'batteries', name: 'Batteries', icon: '🔋' },
-    { id: 'kits', name: 'Solar Kits', icon: '🛠️' },
-    { id: 'installation', name: 'Installation', icon: '🔧' },
-    { id: 'accessories', name: 'Accessories', icon: '🔌' }
-  ];
+  const [categories, setCategories] = useState<Array<{id: string, name: string, icon: string}>>([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      const dbCategories = await categoryService.getAllCategories();
+      const formattedCategories = [
+        { id: 'all', name: 'All Products', icon: '📦' },
+        ...dbCategories.map(cat => ({ id: cat.slug, name: cat.name, icon: cat.icon || '📦' }))
+      ];
+      setCategories(formattedCategories);
+    };
+    loadCategories();
+  }, []);
 
   // Map URL categories to actual database categories
-  const categoryMapping: Record<string, string[]> = {
+      const categoryMapping: Record<string, string[]> = {
     'all': [],
     'solar-panels': ['solar-panels', 'Solar Panels', 'solar panels', 'panel'],
     'inverters': ['inverters', 'Inverters', 'inverter'],
     'batteries': ['batteries', 'Batteries', 'battery'],
-    'kits': ['kits', 'Kits', 'solar kits', 'complete kit'],
-    'installation': ['installation', 'Installation', 'service', 'services'],
-    'accessories': ['accessories', 'Accessories', 'accessory']
+    'ess': ['ess', 'ESS', 'energy storage', 'power storage', 'battery storage'],
+    'street-light': ['street-light', 'street light', 'streetlight', 'solar street light'],
+    'accessories': ['accessories', 'Accessories', 'accessory'],
+    'installation': ['installation', 'Installation', 'service', 'services']
   };
 
-  const categoryDisplayNames: Record<string, string> = {
+      const categoryDisplayNames: Record<string, string> = {
     'all': 'All Products',
     'solar-panels': 'Solar Panels',
     'inverters': 'Inverters',
     'batteries': 'Batteries',
-    'kits': 'Solar Kits',
-    'installation': 'Installation Services',
-    'accessories': 'Accessories'
+    'ess': 'ESS (Energy Storage)',
+    'street-light': 'Street Light Solutions',
+    'accessories': 'Accessories',
+    'installation': 'Installation Services'
   };
 
-  const categoryIcons: Record<string, string> = {
-    'all': '📦',
-    'solar-panels': '☀️',
-    'inverters': '⚡',
-    'batteries': '🔋',
-    'kits': '🛠️',
-    'installation': '🔧',
-    'accessories': '🔌'
+      const categoryIcons: Record<string, string> = {
+    'all': '',
+    'solar-panels': '',
+    'inverters': '',
+    'batteries': '',
+    'ess': '',
+    'street-light': '',
+    'accessories': '',
+    'installation': ''
   };
 
   useEffect(() => {
@@ -175,32 +183,32 @@ function ProductsContent() {
 
   const handleAddToWishlist = async (productId: number) => {
     if (!isAuthenticated) {
-      addNotification('info', 'Please login to manage wishlist');
+      addNotification("warning", "Please login to add to wishlist");
       return;
     }
+    if (!user?.id) return;
     try {
-      await addToWishlist(productId);
-      addNotification('success', 'Added to wishlist');
+      await addToWishlist(user.id, productId);
+      addNotification("success", "Added to wishlist");
     } catch (error) {
-      console.error('Failed to add to wishlist:', error);
-      addNotification('error', 'Failed to add to wishlist');
+      console.error("Failed to add to wishlist:", error);
+      addNotification("error", "Failed to add to wishlist");
     }
   };
-
   const handleRemoveFromWishlist = async (productId: number) => {
     if (!isAuthenticated) {
-      addNotification('info', 'Please login to manage wishlist');
+      addNotification("warning", "Please login to remove from wishlist");
       return;
     }
+    if (!user?.id) return;
     try {
-      await removeFromWishlist(productId);
-      addNotification('success', 'Removed from wishlist');
+      await removeFromWishlist(user.id, productId);
+      addNotification("success", "Removed from wishlist");
     } catch (error) {
-      console.error('Failed to remove from wishlist:', error);
-      addNotification('error', 'Failed to remove from wishlist');
+      console.error("Failed to remove from wishlist:", error);
+      addNotification("error", "Failed to remove from wishlist");
     }
   };
-
   const handleIsInWishlist = (productId: number) => {
     if (!isAuthenticated) return false;
     return isInWishlist(productId);
@@ -571,9 +579,9 @@ function ProductsContent() {
                         return;
                       }
                       if (isInWishlist(selectedProduct.id)) {
-                        handleRemoveFromWishlist(selectedProduct.id);
+                        handleRemoveFromWishlist( selectedProduct.id);
                       } else {
-                        handleAddToWishlist(selectedProduct.id);
+                        handleAddToWishlist( selectedProduct.id);
                       }
                     }}
                     className={`px-4 py-3 rounded-lg transition-all font-medium flex items-center justify-center ${
@@ -619,3 +627,13 @@ export default function ProductsPage() {
     </Suspense>
   );
 }
+
+
+
+
+
+
+
+
+
+

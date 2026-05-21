@@ -16,37 +16,45 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
     email: '',
     password: ''
   });
-  
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { login } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
-    
+    setLocalError(null);
+    setIsLoading(true);
+
     try {
-      await login(credentials);
-      onClose();
-      setCredentials({ email: '', password: '' });
+      const result = await login(credentials);
+      
+      if (result.success) {
+        onClose();
+        setCredentials({ email: '', password: '' });
+        // Redirect based on role
+        if (result.user?.role === 'superadmin') {
+          window.location.href = '/admin/dashboard';
+        } else if (result.user?.role === 'staff') {
+          window.location.href = '/staff/dashboard';
+        } else {
+          window.location.reload();
+        }
+      } else {
+        setLocalError(result.error || 'Login failed. Please try again.');
+      }
     } catch (error) {
-      // Error handled by store
+      console.error('Login error:', error);
+      setLocalError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when user starts typing
-    if (error) clearError();
-  };
-
-  const handleGoogleSuccess = () => {
-    onClose();
-  };
-
-  const handleGoogleError = (errorMessage: string) => {
-    // Error is handled by the GoogleOAuthButton component
-    console.error('Google OAuth error:', errorMessage);
+    if (localError) setLocalError(null);
   };
 
   if (!isOpen) return null;
@@ -71,9 +79,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
+          {localError && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{localError}</p>
             </div>
           )}
 
@@ -81,10 +89,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
           <div className="space-y-3">
             <GoogleOAuthButton
               type="login"
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
+              onSuccess={() => {
+                onClose();
+                window.location.reload();
+              }}
+              onError={(error) => setLocalError(error)}
             />
-            
+
             {/* Divider */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -132,26 +143,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
             />
           </div>
 
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="remember"
-                className="w-4 h-4 text-[#1a2a8a] bg-gray-100 border-gray-300 rounded focus:ring-[#1a2a8a] dark:focus:ring-green-500 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label htmlFor="remember" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                Remember me
-              </label>
-            </div>
-            <button
-              type="button"
-              className="text-sm text-[#1a2a8a] hover:text-[#0f1a66] dark:text-green-400 dark:hover:text-green-300 transition-colors"
-            >
-              Forgot password?
-            </button>
-          </div>
-
           {/* Submit Button */}
           <button
             type="submit"
@@ -190,5 +181,3 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
 };
 
 export default LoginModal;
-
-

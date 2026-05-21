@@ -7,10 +7,8 @@ interface ProductCardProps {
   product: Product;
   onAddToCart: (productId: number) => void;
   onViewDetails: (productId: number) => void;
-  // 👇 NEW: Optional wishlist props
   onAddToWishlist?: (productId: number) => void;
   isInWishlist?: (productId: number) => boolean;
-  // 👇 NEW: Role-based props
   userRole?: 'superadmin' | 'staff' | 'customer' | null;
   isAuthenticated?: boolean;
   onRequireLogin?: () => void;
@@ -21,48 +19,51 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
   onViewDetails,
   onAddToWishlist,
-  isInWishlist,
-  // 👇 NEW: Role props
+  isInWishlist: isInWishlistProp,
   userRole = null,
   isAuthenticated = false,
   onRequireLogin
 }) => {
-  // 👇 NEW: Check if product is in wishlist (hydration-safe)
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isWishlistLoading, setIsWishlistLoading] = useState(false);
 
   useEffect(() => {
-    if (isInWishlist) {
-      setIsWishlisted(isInWishlist(product.id));
+    if (isInWishlistProp) {
+      setIsWishlisted(isInWishlistProp(product.id));
     }
-  }, [isInWishlist, product.id]);
+  }, [isInWishlistProp, product.id]);
 
-  // 👇 NEW: Determine user type
   const isAdminUser = userRole === 'superadmin' || userRole === 'staff';
   const isGuest = !isAuthenticated;
 
-  // 👇 NEW: Handle add to cart with role-based logic
-  const handleAddToCart = () => {
-    // Admin users cannot add to cart - show details instead
+  const handleAddToCartClick = () => {
     if (isAdminUser) {
       onViewDetails(product.id);
       return;
     }
-
-    // Guest users need to login first
     if (isGuest) {
       if (onRequireLogin) {
         onRequireLogin();
       } else {
-        onViewDetails(product.id); // Fallback to details if no login handler
+        onViewDetails(product.id);
       }
       return;
     }
-
-    // Customer users can add to cart
     onAddToCart(product.id);
   };
 
-  // 👇 NEW: Get button text based on user role
+  const handleWishlistClick = async () => {
+    if (!onAddToWishlist) return;
+    if (isWishlistLoading) return;
+    
+    setIsWishlistLoading(true);
+    try {
+      await onAddToWishlist(product.id);
+    } finally {
+      setIsWishlistLoading(false);
+    }
+  };
+
   const getAddToCartButtonText = () => {
     if (!product.inStock) return 'Out of Stock';
     if (isAdminUser) return 'View Details';
@@ -70,20 +71,16 @@ const ProductCard: React.FC<ProductCardProps> = ({
     return 'Add to Cart';
   };
 
-  // 👇 NEW: Get button classes based on user role and stock
   const getButtonClasses = () => {
     if (!product.inStock) {
       return 'bg-gray-300 text-gray-500 cursor-not-allowed';
     }
-    
     if (isAdminUser) {
       return 'bg-purple-600 hover:bg-purple-700 text-white hover:shadow-lg transform hover:-translate-y-0.5';
     }
-    
     if (isGuest) {
       return 'bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white hover:shadow-lg transform hover:-translate-y-0.5';
     }
-    
     return 'bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white hover:shadow-lg transform hover:-translate-y-0.5';
   };
 
@@ -119,8 +116,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
               Only {product.inventory} left
             </span>
           )}
-          
-          {/* 👇 NEW: Admin badge */}
           {isAdminUser && (
             <span className="ml-2 text-xs px-2 py-1 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
               Admin View
@@ -129,7 +124,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </div>
       </div>
 
-      {/* 👇 UPDATED BUTTON CONTAINER - Horizontal layout */}
       <div className="mt-4 flex items-center justify-between">
         <div>
           <div className="text-lg font-bold text-[#1a2a8a] dark:text-green-400">
@@ -139,18 +133,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div className="flex flex-col gap-2">
-          {/* Add to Cart Button - Updated with role-based functionality */}
           <button
-            onClick={handleAddToCart}
+            onClick={handleAddToCartClick}
             disabled={!product.inStock}
             className={'px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#40b553]/30 ' + getButtonClasses()}
           >
             {getAddToCartButtonText()}
           </button>
 
-          {/* Details Button with integrated Heart icon */}
           <div className="flex">
-            {/* Details Button (main area) */}
             <button
               onClick={() => onViewDetails(product.id)}
               className="flex-1 px-3 py-2 text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 rounded-l-lg font-medium transition-colors"
@@ -158,23 +149,21 @@ const ProductCard: React.FC<ProductCardProps> = ({
               Details
             </button>
 
-            {/* Heart Button (attached to Details button) */}
             {onAddToWishlist && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddToWishlist(product.id);
-                }}
-                disabled={!product.inStock}
+                onClick={() => onAddToWishlist?.(product.id)}
+                disabled={!product.inStock || isWishlistLoading}
                 className={`px-3 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-lg transition-all duration-200 ${
                   isWishlisted
                     ? "text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
                     : "text-gray-500 hover:text-red-500 bg-gray-50 hover:bg-red-50 dark:bg-gray-700 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20"
-                } ${!product.inStock ? "opacity-50 cursor-not-allowed" : ""}`}
+                } ${(!product.inStock || isWishlistLoading) ? "opacity-50 cursor-not-allowed" : ""}`}
                 title={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
                 aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
               >
-                {isWishlisted ? (
+                {isWishlistLoading ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : isWishlisted ? (
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
                   </svg>
@@ -193,3 +182,4 @@ const ProductCard: React.FC<ProductCardProps> = ({
 };
 
 export default ProductCard;
+

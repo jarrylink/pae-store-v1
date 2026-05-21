@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useSearchStore } from '@/lib/stores/searchStore';
+import { categoryService } from '@/lib/services/categoryService';
 
 const HeaderSearch: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -139,3 +140,4 @@ const HeaderSearch: React.FC = () => {
 };
 
 export default HeaderSearch;
+

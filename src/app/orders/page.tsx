@@ -4,12 +4,16 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useUserProfileStore } from '@/lib/stores/userStore';
+import OrderInvoice from '@/components/account/receipts/OrderInvoice';
+import OrderReceipt from '@/components/account/receipts/OrderReceipt';
 
 export default function OrdersPage() {
   const { user, isAuthenticated } = useAuthStore();
   const { orders, setOrders } = useUserProfileStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [selectedOrderForReceipt, setSelectedOrderForReceipt] = useState<any>(null);
+  const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
 
   // Fetch orders from API when component mounts
   useEffect(() => {
@@ -73,6 +77,14 @@ export default function OrdersPage() {
       cancelled: 0
     };
     return steps[status] || 0;
+  };
+
+  const openReceipt = (order: any) => {
+    setSelectedOrderForReceipt(order);
+  };
+
+  const openInvoice = (order: any) => {
+    setSelectedOrderForInvoice(order);
   };
 
   if (!isAuthenticated || !user) {
@@ -243,7 +255,16 @@ export default function OrdersPage() {
                     <button className="px-4 py-2 text-sm font-medium text-[#1a2a8a] dark:text-green-400 hover:text-[#0f1a66] dark:hover:text-green-300 border border-[#1a2a8a] dark:border-green-400 rounded-lg transition-colors">
                       View Details
                     </button>
-                    <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg transition-colors">
+                    <button
+                      onClick={() => openInvoice(order)}
+                      className="px-4 py-2 text-sm font-medium text-[#1a2a8a] dark:text-green-400 hover:text-[#0f1a66] dark:hover:text-green-300 border border-[#1a2a8a] dark:border-green-400 rounded-lg transition-colors"
+                    >
+                      Generate Invoice
+                    </button>
+                    <button
+                      onClick={() => openReceipt(order)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
+                    >
                       Download Receipt
                     </button>
                     {order.status === 'delivered' && (
@@ -280,7 +301,14 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {selectedOrderForInvoice && (
+        <OrderInvoice order={selectedOrderForInvoice} onClose={() => setSelectedOrderForInvoice(null)} />
+      )}
+      {selectedOrderForReceipt && (
+        <OrderReceipt order={selectedOrderForReceipt} onClose={() => setSelectedOrderForReceipt(null)} />
+      )}
     </div>
   );
 }
-

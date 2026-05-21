@@ -413,3 +413,32 @@ input:focus, textarea:focus, select:focus {
 .animate-slide-in {
   animation: slideIn 0.3s ease-out;
 }
+
+
+/* Mobile viewport fixes */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+  
+  .container, .max-w-7xl, .max-w-full {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  main, .min-h-screen {
+    overflow-x: hidden;
+  }
+}
+
+
+/* Fix for dropdowns being clipped */
+header, nav, .sticky, .fixed {
+  overflow: visible !important;
+}
+
+.dropdown-menu {
+  z-index: 9999 !important;
+}
