@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import Header from '@/components/layout/header/Header';
+import StickyHeaderWrapper from "@/components/layout/StickyHeaderWrapper";
 import Footer from '@/components/layout/footer/Footer';
 import HeroSection from '@/components/features/hero/HeroSection';
 import SlideshowAdBanner from '@/components/features/ads/SlideshowAdBanner';
-import StickySearchPanel from '@/components/features/search/StickySearchPanel';
+
 
 import ParticleBackground from '@/components/features/particles/ParticleBackground';
 import ProductCard from '@/components/ui/cards/ProductCard';
@@ -124,11 +124,10 @@ export default function Home() {
     }
   };
   return (
-    <main className="min-h-screen bg-transparent transition-colors duration-300 relative">
+    <main className="min-h-screen bg-transparent transition-colors duration-300 relative overflow-x-hidden">
       <div className="fixed inset-0 z-0"><ParticleBackground /></div>
       <div className="relative z-10">
-        <Header />
-        <StickySearchPanel />
+        <StickyHeaderWrapper />
         <SlideshowAdBanner />
         <HeroSection />      <CategoriesSection /><section id="products" className="py-16 bg-transparent transition-colors duration-300">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -180,6 +179,8 @@ export default function Home() {
           <FloatingWhatsApp />    </main>
   );
 }
+
+
 
 
 

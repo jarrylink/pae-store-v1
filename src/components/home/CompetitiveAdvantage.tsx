@@ -42,14 +42,14 @@ const advantages: Advantage[] = [
   },
   {
     id: 4,
-    title: '5-Year Warranty',
+    title: 'Warranty',
     description: 'Comprehensive warranty coverage on all solar products',
     icon: <Shield className="w-8 h-8" />,
     color: 'from-purple-500 to-pink-500'
   },
   {
     id: 5,
-    title: 'Fast Delivery',
+    title: 'Fast & Free Delivery',
     description: 'Quick shipping across Katsina State and nationwide',
     icon: <Clock className="w-8 h-8" />,
     color: 'from-orange-500 to-red-500'
@@ -60,13 +60,6 @@ const advantages: Advantage[] = [
     description: 'Competitive pricing with flexible payment options',
     icon: <Wallet className="w-8 h-8" />,
     color: 'from-emerald-500 to-teal-500'
-  },
-  {
-    id: 7,
-    title: 'Energy Efficiency',
-    description: 'High-efficiency systems that maximize energy savings',
-    icon: <Zap className="w-8 h-8" />,
-    color: 'from-yellow-500 to-orange-500'
   },
   {
     id: 8,
@@ -128,7 +121,7 @@ export default function CompetitiveAdvantage() {
         <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">1,000+</div>
+              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">2,000+</div>
               <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Happy Customers</div>
             </div>
             <div className="text-center">

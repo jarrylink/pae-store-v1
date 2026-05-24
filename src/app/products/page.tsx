@@ -5,8 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Product } from '@/types';
 import ProductCard from '@/components/ui/cards/ProductCard';
-import Header from '@/components/layout/header/Header';
-import StickySearchPanel from '@/components/features/search/StickySearchPanel';
+import StickyHeaderWrapper from '@/components/layout/StickyHeaderWrapper';
 import Footer from '@/components/layout/footer/Footer';
 import CartDrawer from '@/components/features/cart/CartDrawer';
 import { useCartStore } from '@/lib/stores/cartStore';
@@ -19,8 +18,8 @@ import { categoryService } from '@/lib/services/categoryService';
 // Loading component for Suspense fallback
 function ProductsLoading() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+      <StickyHeaderWrapper />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-center items-center min-h-[60vh]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a2a8a]"></div>
@@ -41,7 +40,7 @@ function ProductsContent() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
   const { user, isAuthenticated } = useAuthStore();
   const { addNotification } = useNotificationStore();
-  
+
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,8 +64,7 @@ function ProductsContent() {
     loadCategories();
   }, []);
 
-  // Map URL categories to actual database categories
-      const categoryMapping: Record<string, string[]> = {
+  const categoryMapping: Record<string, string[]> = {
     'all': [],
     'solar-panels': ['solar-panels', 'Solar Panels', 'solar panels', 'panel'],
     'inverters': ['inverters', 'Inverters', 'inverter'],
@@ -77,7 +75,7 @@ function ProductsContent() {
     'installation': ['installation', 'Installation', 'service', 'services']
   };
 
-      const categoryDisplayNames: Record<string, string> = {
+  const categoryDisplayNames: Record<string, string> = {
     'all': 'All Products',
     'solar-panels': 'Solar Panels',
     'inverters': 'Inverters',
@@ -88,7 +86,7 @@ function ProductsContent() {
     'installation': 'Installation Services'
   };
 
-      const categoryIcons: Record<string, string> = {
+  const categoryIcons: Record<string, string> = {
     'all': '',
     'solar-panels': '',
     'inverters': '',
@@ -130,20 +128,18 @@ function ProductsContent() {
 
   const filterAndSortProducts = () => {
     let filtered = [...products];
-    
-    // Filter by category
+
     if (selectedCategory !== 'all') {
       const searchTerms = categoryMapping[selectedCategory] || [selectedCategory];
       filtered = filtered.filter(product => {
         const productCat = product.category?.toLowerCase() || '';
-        return searchTerms.some(term => 
-          productCat.includes(term.toLowerCase()) || 
+        return searchTerms.some(term =>
+          productCat.includes(term.toLowerCase()) ||
           term.toLowerCase().includes(productCat)
         );
       });
     }
-    
-    // Sort products
+
     switch (sortBy) {
       case 'price-low':
         filtered.sort((a, b) => a.price - b.price);
@@ -160,7 +156,7 @@ function ProductsContent() {
       default:
         filtered.sort((a, b) => a.id - b.id);
     }
-    
+
     setFilteredProducts(filtered);
   };
 
@@ -196,6 +192,7 @@ function ProductsContent() {
       addNotification("error", "Failed to add to wishlist");
     }
   };
+  
   const handleRemoveFromWishlist = async (productId: number) => {
     if (!isAuthenticated) {
       addNotification("warning", "Please login to remove from wishlist");
@@ -210,6 +207,7 @@ function ProductsContent() {
       addNotification("error", "Failed to remove from wishlist");
     }
   };
+  
   const handleIsInWishlist = (productId: number) => {
     if (!isAuthenticated) return false;
     return isInWishlist(productId);
@@ -233,8 +231,8 @@ function ProductsContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Header />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+        <StickyHeaderWrapper />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-center items-center min-h-[60vh]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a2a8a]"></div>
@@ -246,9 +244,8 @@ function ProductsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <Header />      {/* Sticky Search Panel */}      <StickySearchPanel />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+      <StickyHeaderWrapper />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with Title and Controls */}
@@ -261,9 +258,8 @@ function ProductsContent() {
               {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
             </p>
           </div>
-          
+
           <div className="mt-4 md:mt-0 flex items-center space-x-3">
-            {/* Sort Dropdown */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -276,7 +272,6 @@ function ProductsContent() {
               <option value="name-desc">Name: Z to A</option>
             </select>
 
-            {/* View Toggle */}
             <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
               <button
                 onClick={() => handleViewChange('grid')}
@@ -331,7 +326,6 @@ function ProductsContent() {
         {/* Products Display */}
         {filteredProducts.length > 0 ? (
           viewMode === 'grid' ? (
-            /* Grid View */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredProducts.map((product) => (
                 <ProductCard
@@ -348,13 +342,9 @@ function ProductsContent() {
               ))}
             </div>
           ) : (
-            /* List View */
             <div className="space-y-4">
               {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700"
-                >
+                <div key={product.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700">
                   <div className="flex flex-col md:flex-row">
                     <div className="md:w-48 h-48 md:h-auto overflow-hidden">
                       <img
@@ -424,19 +414,15 @@ function ProductsContent() {
         )}
       </div>
 
-      {/* Footer */}
       <Footer />
 
-      {/* Cart Drawer */}
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
-      {/* Product Details Modal */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
-            {/* Close button */}
-            <button 
-              onClick={closeModal} 
+            <button
+              onClick={closeModal}
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 z-10 bg-white dark:bg-gray-800 rounded-full p-1 shadow-lg"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -445,7 +431,6 @@ function ProductsContent() {
             </button>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-              {/* Left column - Image */}
               <div>
                 <div className="aspect-w-1 aspect-h-1 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-4">
                   <img
@@ -459,21 +444,17 @@ function ProductsContent() {
                 </div>
               </div>
 
-              {/* Right column - Product details */}
               <div className="flex flex-col">
-                {/* Category badge */}
                 {selectedProduct.category && (
                   <span className="inline-block bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white text-sm px-3 py-1 rounded-full mb-4 w-fit">
                     {selectedProduct.category}
                   </span>
                 )}
 
-                {/* Title */}
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
                   {selectedProduct.title}
                 </h2>
 
-                {/* Brand & specs */}
                 <div className="space-y-2 mb-4">
                   <p className="text-gray-600 dark:text-gray-400">
                     <span className="font-semibold">Brand:</span> {selectedProduct.brand || 'N/A'}
@@ -486,17 +467,15 @@ function ProductsContent() {
                   </p>
                 </div>
 
-                {/* Price */}
                 <div className="mb-4">
                   <span className="text-3xl font-bold text-[#1a2a8a] dark:text-green-400">
                     ₦{selectedProduct.price.toLocaleString()}
                   </span>
                 </div>
 
-                {/* Stock status */}
                 <div className="mb-4">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedProduct.inStock 
+                    selectedProduct.inStock
                       ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                       : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                   }`}>
@@ -509,7 +488,6 @@ function ProductsContent() {
                   )}
                 </div>
 
-                {/* Quantity selector */}
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Quantity
@@ -555,7 +533,6 @@ function ProductsContent() {
                   </div>
                 </div>
 
-                {/* Action buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 mt-auto">
                   <button
                     onClick={() => {
@@ -580,9 +557,9 @@ function ProductsContent() {
                         return;
                       }
                       if (isInWishlist(selectedProduct.id)) {
-                        handleRemoveFromWishlist( selectedProduct.id);
+                        handleRemoveFromWishlist(selectedProduct.id);
                       } else {
-                        handleAddToWishlist( selectedProduct.id);
+                        handleAddToWishlist(selectedProduct.id);
                       }
                     }}
                     className={`px-4 py-3 rounded-lg transition-all font-medium flex items-center justify-center ${
@@ -598,7 +575,6 @@ function ProductsContent() {
                   </button>
                 </div>
 
-                {/* Warranty */}
                 {selectedProduct.warranty && (
                   <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                     <div className="flex items-center">
@@ -628,14 +604,5 @@ export default function ProductsPage() {
     </Suspense>
   );
 }
-
-
-
-
-
-
-
-
-
 
 

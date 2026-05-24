@@ -199,10 +199,9 @@ const OrderInvoice: React.FC<OrderInvoiceProps> = ({ order, onClose }) => {
         <!-- Payment Information -->
         <div class="payment-info">
           <div style="font-weight: bold; margin-bottom: 0.25rem;">Payment Instructions:</div>
-          <div>Bank: First Bank of Nigeria</div>
-          <div>Account Name: Power Afric Energy Services Ltd</div>
-          <div>Account Number: 2034567890</div>
-          <div>Sort Code: 011234567</div>
+          <div>Bank: GTBank Plc.</div>
+          <div>Account Name: Power Afric Energy Serv. LTD</div>
+          <div>Account Number: 0500647890</div>
           <div style="margin-top: 0.25rem; font-size: 9px;">Please use Invoice No: ${invoiceNumber} as payment reference</div>
         </div>
 
@@ -217,17 +216,22 @@ const OrderInvoice: React.FC<OrderInvoiceProps> = ({ order, onClose }) => {
         ` : ''}
 
         <!-- Terms & Footer -->
+
         <div class="terms">
           <strong>Terms & Conditions:</strong><br>
-          1. Payment due within 14 days of invoice date.<br>
-          2. 2% monthly interest charge on overdue payments.<br>
-          3. Installation warranty: 2 years on workmanship.<br>
-          4. Product warranty: As per manufacturer specifications.<br>
-          5. This is a computer-generated invoice and requires no signature.
+            * Full payment is required before order processing or delivery.<br>
+            * Prices and product availability may change without notice.<br>
+            * Delivery timelines depend on location and stock availability.<br>
+            * Products are covered by manufacturer warranty terms.<br>
+            * Returns are only accepted for defective or incorrect items reported within 48 hours of delivery.<br>
+            * Installed, customized, or used products are non-returnable.<br>
+            * Power Afric is not liable for damages caused by misuse, overload, unstable power, or unauthorized modifications.<br>
+            * Customers are responsible for providing accurate delivery and order information.<br>
+            * Orders are processed only after payment confirmation.<br>
         </div>
 
         <div class="footer">
-          Thank you for choosing Power Afric Energy Services Ltd - Powering Your Future with Solar Energy
+          Thank you for choosing Power Afric Energy Services Ltd - Your trusted energy companion.
         </div>
       </div>
     </div>
