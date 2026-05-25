@@ -4,6 +4,8 @@
   brand: string;
   spec: string;
   price: number;
+  purchasePrice: number;
+  vendorPrice: number;
   image: string;
   category: "Solar Panel" | "Inverter" | "Battery" | "Kit" | "Accessory";
   warranty: string;
@@ -23,5 +25,8 @@ export interface CartItem extends Product {
 }
 
 // Add other exports as needed...
+
+
+
 
 

@@ -21,24 +21,26 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log("Creating product with data:", body);
-    
+
     const result = await sql`
       INSERT INTO "Product" (
         title, brand, spec, price, image, category, warranty,
         "installationTime", capacity, "compatibleWith", features,
-        "inStock", inventory, "systemType"
+        "inStock", inventory, "systemType", "purchasePrice", "vendorPrice"
       ) VALUES (
         ${body.title}, ${body.brand}, ${body.spec}, ${body.price}, ${body.image},
         ${body.category}, ${body.warranty}, ${body.installationTime || "1-2 days"},
-        ${body.capacity || "N/A"}, 
+        ${body.capacity || "N/A"},
         ${JSON.stringify(body.compatibleWith || [])},
-        ${JSON.stringify(body.features || [])}, 
+        ${JSON.stringify(body.features || [])},
         ${body.inStock}, ${body.inventory},
-        ${body.systemType || "basic"}
+        ${body.systemType || "basic"},
+        ${body.purchasePrice || 0},
+        ${body.vendorPrice || 0}
       )
       RETURNING *
     `;
-    
+
     console.log("Product created with ID:", result[0].id);
     return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
@@ -46,5 +48,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
   }
 }
-
-

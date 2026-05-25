@@ -7,7 +7,7 @@ import { useNotificationStore } from '@/lib/stores/notificationStore';
 import { formatCurrency } from '@/utils';
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, clearCart, getTotal } = useCartStore();
+  const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCartStore();
   const { addNotification } = useNotificationStore();
 
   const handleUpdateQuantity = (productId: number, newQuantity: number) => {
@@ -115,7 +115,7 @@ export default function CartPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                   <span className="text-gray-900 dark:text-white font-medium">
-                    {formatCurrency(getTotal())}
+                    {formatCurrency(getTotalPrice())}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -126,7 +126,7 @@ export default function CartPage() {
                   <div className="flex justify-between">
                     <span className="text-base font-bold text-gray-900 dark:text-white">Total</span>
                     <span className="text-xl font-bold text-[#1a2a8a] dark:text-green-400">
-                      {formatCurrency(getTotal())}
+                      {formatCurrency(getTotalPrice())}
                     </span>
                   </div>
                 </div>
@@ -159,3 +159,6 @@ export default function CartPage() {
     </div>
   );
 }
+
+
+

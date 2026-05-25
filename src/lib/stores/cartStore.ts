@@ -1,102 +1,79 @@
 ﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem } from '@/types';
+import { CartItem, Product } from '@/types';
 
-interface CartState {
+interface CartStore {
   items: CartItem[];
-  installationType: string;
-  installationFee: number;
-  installationService: boolean;
-  addItem: (product: Product) => void;
+  addItem: (product: Product, quantity?: number) => void;
   removeItem: (productId: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
   clearCart: () => void;
-  setInstallationType: (serviceId: string) => void;
-  setInstallationFee: (fee: number) => void;
-  getTotal: () => number;
-  getItemsSubtotal: () => number;
+  getTotalItems: () => number;
+  getTotalPrice: () => number;
 }
 
-export const useCartStore = create<CartState>()(
+export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      installationType: 'none',
-      installationFee: 0,
-      installationService: false,
-
-      addItem: (product: Product) => {
-        set((state) => {
-          const existingItem = state.items.find(item => item.id === product.id);
-          
-          if (existingItem) {
-            return {
-              items: state.items.map(item =>
-                item.id === product.id
-                  ? { ...item, quantity: Number(item.quantity) + 1 }
-                  : item
-              )
-            };
-          }
-
+      
+      addItem: (product: Product, quantity: number = 1) => {
+        const { items } = get();
+        const existingItem = items.find(item => item.id === product.id);
+        
+        if (existingItem) {
+          set({
+            items: items.map(item =>
+              item.id === product.id
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
+            )
+          });
+        } else {
           const newItem: CartItem = {
             id: product.id,
             title: product.title,
             brand: product.brand,
             spec: product.spec,
             capacity: product.capacity,
-            price: Number(product.price),
-            quantity: 1,
+            price: product.price,
+            purchasePrice: product.purchasePrice || 0,
+            vendorPrice: product.vendorPrice || 0,
+            quantity: quantity,
             image: product.image,
             warranty: product.warranty,
-            category: product.category || '',
-            inStock: product.inStock || true,
-            inventory: product.inventory || 0
+            category: product.category,
+            inStock: product.inStock,
+            inventory: product.inventory
           };
-
-          return { items: [...state.items, newItem] };
+          set({ items: [...items, newItem] });
+        }
+      },
+      
+      removeItem: (productId: number) => {
+        set({ items: get().items.filter(item => item.id !== productId) });
+      },
+      
+      updateQuantity: (productId: number, quantity: number) => {
+        if (quantity <= 0) {
+          get().removeItem(productId);
+          return;
+        }
+        set({
+          items: get().items.map(item =>
+            item.id === productId ? { ...item, quantity } : item
+          )
         });
       },
-
-      removeItem: (productId: number) => {
-        set((state) => ({
-          items: state.items.filter(item => item.id !== productId)
-        }));
+      
+      clearCart: () => set({ items: [] }),
+      
+      getTotalItems: () => {
+        return get().items.reduce((total, item) => total + item.quantity, 0);
       },
-
-      updateQuantity: (productId: number, quantity: number) => {
-        set((state) => ({
-          items: state.items.map(item =>
-            item.id === productId ? { ...item, quantity: Number(quantity) } : item
-          )
-        }));
-      },
-
-      clearCart: () => {
-        set({ items: [], installationType: 'none', installationFee: 0, installationService: false });
-      },
-
-      setInstallationType: (serviceId: string) => {
-        set({ installationType: serviceId });
-      },
-
-      setInstallationFee: (fee: number) => {
-        set({ installationFee: Number(fee) });
-      },
-
-      getItemsSubtotal: () => {
-        const state = get();
-        return state.items.reduce((sum, item) => {
-          return sum + (Number(item.price) * Number(item.quantity));
-        }, 0);
-      },
-
-      getTotal: () => {
-        const state = get();
-        const itemsTotal = state.items.reduce((sum, item) => {
-          return sum + (Number(item.price) * Number(item.quantity));
-        }, 0);
-        return Number(itemsTotal) + Number(state.installationFee);
+      
+      getTotalPrice: () => {
+        return get().items.reduce((total, item) => total + (item.price * item.quantity), 0);
       }
     }),
     {

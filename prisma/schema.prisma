@@ -68,3 +68,4 @@ model WishlistItem {
   productId Int
   addedAt   DateTime @default(now())
 }
+

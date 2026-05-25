@@ -36,7 +36,7 @@ interface CheckoutFormData {
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { items, installationType, getTotal, clearCart } = useCartStore();
+  const { items, getTotalPrice, clearCart } = useCartStore();
   
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
@@ -690,3 +690,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+

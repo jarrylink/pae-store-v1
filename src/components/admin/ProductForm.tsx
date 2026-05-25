@@ -23,12 +23,14 @@ const warranties = [
 export default function ProductForm({ product, onSubmit, onCancel, isSubmitting }: ProductFormProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  
+
   const [formData, setFormData] = useState({
     title: product?.title || '',
     brand: product?.brand || '',
     category: product?.category || '',
     price: product?.price?.toString() || '0',
+    purchasePrice: product?.purchasePrice?.toString() || '0',
+    vendorPrice: product?.vendorPrice?.toString() || '0',
     inventory: product?.inventory?.toString() || '0',
     warranty: product?.warranty || '1 Year Warranty',
     spec: product?.spec || '',
@@ -45,13 +47,11 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
       try {
         const cats = await categoryService.getAllCategories();
         setCategories(cats);
-        // Set default category if none selected and categories exist
         if (!formData.category && cats.length > 0) {
           setFormData(prev => ({ ...prev, category: cats[0].name }));
         }
       } catch (error) {
         console.error('Error loading categories:', error);
-        // Fallback categories
         const fallbackCategories = [
           { id: 1, name: 'Solar Panels', slug: 'solar-panels' },
           { id: 2, name: 'Inverters', slug: 'inverters' },
@@ -78,7 +78,7 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
     if (!formData.title.trim()) newErrors.title = 'Product title is required';
     if (!formData.brand.trim()) newErrors.brand = 'Brand is required';
     if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = 'Price must be greater than 0';
+    if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = 'Selling price must be greater than 0';
     if (!formData.inventory || parseInt(formData.inventory) < 0) newErrors.inventory = 'Inventory cannot be negative';
     if (!formData.spec.trim()) newErrors.spec = 'Specifications are required';
     if (!formData.image.trim()) newErrors.image = 'Image URL is required';
@@ -97,6 +97,8 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
     const productData = {
       ...formData,
       price: parseFloat(formData.price),
+      purchasePrice: parseFloat(formData.purchasePrice) || 0,
+      vendorPrice: parseFloat(formData.vendorPrice) || 0,
       inventory: parseInt(formData.inventory),
       inStock: parseInt(formData.inventory) > 0,
       ...(product ? {} : {
@@ -147,15 +149,10 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                className={`w-full px-4 py-2.5 border ${errors.title ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent`}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
                 placeholder="e.g., Solar Inverter 5000W"
               />
-              {errors.title && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.title}
-                </p>
-              )}
+              {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
             </div>
 
             <div>
@@ -166,15 +163,10 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
                 type="text"
                 value={formData.brand}
                 onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                className={`w-full px-4 py-2.5 border ${errors.brand ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent`}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
                 placeholder="e.g., Victron, Growatt, Huawei"
               />
-              {errors.brand && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.brand}
-                </p>
-              )}
+              {errors.brand && <p className="mt-1 text-sm text-red-600">{errors.brand}</p>}
             </div>
 
             <div>
@@ -182,28 +174,23 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
                 Category *
               </label>
               {loadingCategories ? (
-                <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700">
+                <div className="flex items-center gap-2 px-4 py-2.5 border rounded-lg bg-gray-50">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-gray-500">Loading categories...</span>
+                  <span>Loading...</span>
                 </div>
               ) : (
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  className={`w-full px-4 py-2.5 border ${errors.category ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent`}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
                 >
-                  <option value="">Select a category</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.name}>{category.name}</option>
+                  <option value="">Select category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
                   ))}
                 </select>
               )}
-              {errors.category && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.category}
-                </p>
-              )}
+              {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
             </div>
 
             <div>
@@ -215,8 +202,8 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
                 onChange={(e) => setFormData(prev => ({ ...prev, warranty: e.target.value }))}
                 className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
               >
-                {warranties.map((warranty) => (
-                  <option key={warranty} value={warranty}>{warranty}</option>
+                {warranties.map((w) => (
+                  <option key={w} value={w}>{w}</option>
                 ))}
               </select>
             </div>
@@ -230,57 +217,73 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
             Pricing & Inventory
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Price (₦) *
+                Selling Price (₦) *
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₦</span>
-                <input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                  className={`w-full pl-10 pr-4 py-2.5 border ${errors.price ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent`}
-                  placeholder="0"
-                  min="0"
-                  step="1000"
-                />
-              </div>
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.price}
-                </p>
-              )}
+              <input
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
+                placeholder="0"
+                min="0"
+                
+              />
+              {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Purchase Price (Cost) (₦)
+              </label>
+              <input
+                type="number"
+                value={formData.purchasePrice}
+                onChange={(e) => setFormData(prev => ({ ...prev, purchasePrice: e.target.value }))}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
+                placeholder="0"
+                min="0"
+                
+              />
+              <p className="mt-1 text-xs text-gray-500">What you paid to supplier</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Vendor Price (₦)
+              </label>
+              <input
+                type="number"
+                value={formData.vendorPrice}
+                onChange={(e) => setFormData(prev => ({ ...prev, vendorPrice: e.target.value }))}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
+                placeholder="0"
+                min="0"
+                
+              />
+              <p className="mt-1 text-xs text-gray-500">Price quoted by vendor</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Inventory Quantity *
               </label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="number"
-                  value={formData.inventory}
-                  onChange={(e) => setFormData(prev => ({ ...prev, inventory: e.target.value }))}
-                  className={`w-full pl-10 pr-4 py-2.5 border ${errors.inventory ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent`}
-                  placeholder="0"
-                  min="0"
-                />
-              </div>
-              {errors.inventory && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.inventory}
-                </p>
-              )}
+              <input
+                type="number"
+                value={formData.inventory}
+                onChange={(e) => setFormData(prev => ({ ...prev, inventory: e.target.value }))}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
+                placeholder="0"
+                min="0"
+              />
+              {errors.inventory && <p className="mt-1 text-sm text-red-600">{errors.inventory}</p>}
             </div>
           </div>
         </div>
 
-        {/* Image */}
+        {/* Image Section */}
         <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
             <Upload className="w-5 h-5 mr-2" />
@@ -296,37 +299,24 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
                 type="text"
                 value={formData.image}
                 onChange={handleImageChange}
-                className={`w-full px-4 py-2.5 border ${errors.image ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent`}
-                placeholder="https://example.com/product-image.jpg"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
+                placeholder="https://example.com/image.jpg"
               />
-              {errors.image && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.image}
-                </p>
-              )}
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Enter a valid image URL (jpg, png, webp)
-              </p>
+              {errors.image && <p className="mt-1 text-sm text-red-600">{errors.image}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Image Preview
               </label>
-              <div className="relative h-64 w-full bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+              <div className="h-48 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                 {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Product preview"
-                    className="w-full h-full object-cover"
-                    onError={() => setImagePreview('https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=800')}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <Package className="w-16 h-16 text-gray-400" />
-                  </div>
-                )}
+  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+) : (
+  <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+    <Package className="w-12 h-12 text-gray-400" />
+  </div>
+)}
               </div>
             </div>
           </div>
@@ -347,27 +337,19 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
               value={formData.spec}
               onChange={(e) => setFormData(prev => ({ ...prev, spec: e.target.value }))}
               rows={4}
-              className={`w-full px-4 py-2.5 border ${errors.spec ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent`}
-              placeholder="Enter detailed product specifications, features, and technical details..."
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent"
+              placeholder="Enter product specifications..."
             />
-            {errors.spec && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                <AlertCircle className="w-3 h-3 mr-1" />
-                {errors.spec}
-              </p>
-            )}
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Include key details like capacity, voltage, dimensions, features, etc.
-            </p>
+            {errors.spec && <p className="mt-1 text-sm text-red-600">{errors.spec}</p>}
           </div>
         </div>
 
         {/* Form Actions */}
-        <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-end space-x-4 pt-6 border-t">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             disabled={isSubmitting}
           >
             Cancel
@@ -375,21 +357,14 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-6 py-3 bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white rounded-lg hover:from-[#0f1a66] hover:to-[#2e8b47] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-6 py-3 bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white rounded-lg hover:opacity-90 transition-all disabled:opacity-50"
           >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                {product ? 'Updating...' : 'Creating...'}
-              </>
-            ) : (
-              <>
-                {product ? 'Update Product' : 'Create Product'}
-              </>
-            )}
+            {isSubmitting ? (product ? 'Updating...' : 'Creating...') : (product ? 'Update Product' : 'Create Product')}
           </button>
         </div>
       </form>
     </div>
   );
 }
+
+
