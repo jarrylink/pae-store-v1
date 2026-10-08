@@ -1,11 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'));
 
 export async function GET(request: NextRequest) {
     try {
-        console.log('🔍 Fetching staff users...');
+        console.log('?? Fetching staff users...');
         
         // Simple query to get all staff users
         const staff = await sql`
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
             ORDER BY "firstName"
         `;
         
-        console.log(`✅ Found ${staff.length} staff members`);
+        console.log(`? Found ${staff.length} staff members`);
         
         // Format the response
         const formattedStaff = staff.map(s => ({
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
             staff: formattedStaff
         });
     } catch (error) {
-        console.error('❌ Error fetching staff:', error);
+        console.error('? Error fetching staff:', error);
         return NextResponse.json({ 
             success: false, 
             error: error instanceof Error ? error.message : 'Unknown error' 

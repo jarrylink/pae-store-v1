@@ -1,17 +1,17 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'));
 
 export async function GET(request: NextRequest) {
     try {
-        console.log('📋 Staff orders API called');
+        console.log('?? Staff orders API called');
         
         // Get user_data cookie
         const userCookie = request.cookies.get('user_data');
         
         if (!userCookie?.value) {
-            console.log('❌ No user_data cookie found');
+            console.log('? No user_data cookie found');
             return NextResponse.json({ 
                 success: false, 
                 error: 'Unauthorized - Please log in again' 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         let userData;
         try {
             userData = JSON.parse(decodeURIComponent(userCookie.value));
-            console.log('✅ User from cookie:', userData.email, 'Role:', userData.role, 'ID:', userData.id);
+            console.log('? User from cookie:', userData.email, 'Role:', userData.role, 'ID:', userData.id);
         } catch (e) {
             console.error('Error parsing user cookie:', e);
             return NextResponse.json({ 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         
         // Verify user is staff
         if (userData.role !== 'staff') {
-            console.log('❌ User is not staff:', userData.role);
+            console.log('? User is not staff:', userData.role);
             return NextResponse.json({ 
                 success: false, 
                 error: 'Forbidden - Staff access only' 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         }
         
         const staffId = userData.id;
-        console.log(`🔍 Fetching orders for staff ID: ${staffId}`);
+        console.log(`?? Fetching orders for staff ID: ${staffId}`);
         
         // First, let's check if this staff has any orders assigned
         const checkOrders = await sql`
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
             FROM "Order"
             WHERE "assignedStaffId" = ${staffId}
         `;
-        console.log(`📊 Staff ${userData.email} has ${checkOrders[0].count} orders assigned`);
+        console.log(`?? Staff ${userData.email} has ${checkOrders[0].count} orders assigned`);
         
         // Fetch orders assigned to this staff member
         const orders = await sql`
@@ -67,9 +67,9 @@ export async function GET(request: NextRequest) {
             ORDER BY o."createdAt" DESC
         `;
         
-        console.log(`✅ Found ${orders.length} orders for ${userData.email}`);
+        console.log(`? Found ${orders.length} orders for ${userData.email}`);
         if (orders.length > 0) {
-            console.log('📦 Order numbers:', orders.map(o => o.orderNumber).join(', '));
+            console.log('?? Order numbers:', orders.map(o => o.orderNumber).join(', '));
         }
         
         const parsedOrders = orders.map(order => ({
@@ -108,7 +108,7 @@ export async function PATCH(request: NextRequest) {
     try {
         const { orderId, status } = await request.json();
         
-        console.log(`📝 Updating order ${orderId} to status: ${status}`);
+        console.log(`?? Updating order ${orderId} to status: ${status}`);
         
         if (!orderId || !status) {
             return NextResponse.json({ 
@@ -173,7 +173,7 @@ export async function PATCH(request: NextRequest) {
             RETURNING id, status
         `;
         
-        console.log(`✅ Order ${orderId} status updated from ${order[0].status} to ${status}`);
+        console.log(`? Order ${orderId} status updated from ${order[0].status} to ${status}`);
         
         return NextResponse.json({ 
             success: true, 

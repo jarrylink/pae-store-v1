@@ -4,7 +4,7 @@ import { neon } from '@neondatabase/serverless';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const sql = neon(process.env.DATABASE_URL!, {
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'), {
   fetchOptions: { timeout: 30000 }
 });
 

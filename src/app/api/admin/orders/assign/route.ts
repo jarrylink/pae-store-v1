@@ -1,13 +1,13 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'));
 
 export async function POST(request: NextRequest) {
     try {
         const { orderId, staffId } = await request.json();
         
-        console.log(`📝 Assigning order ${orderId} to staff ${staffId}`);
+        console.log(`?? Assigning order ${orderId} to staff ${staffId}`);
         
         if (!orderId || !staffId) {
             return NextResponse.json({ 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
             RETURNING id, "assignedStaffId", "assignedStaffName", "assignedStaffEmail"
         `;
         
-        console.log(`✅ Order ${orderId} assigned to ${staff[0].firstName} ${staff[0].lastName}`);
+        console.log(`? Order ${orderId} assigned to ${staff[0].firstName} ${staff[0].lastName}`);
         
         return NextResponse.json({ 
             success: true, 

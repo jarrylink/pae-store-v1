@@ -1,7 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'));
 
 export async function GET(request: NextRequest) {
   try {
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
       risks.push({
         type: 'MEDIUM',
         title: 'Low Cash Reserves',
-        description: `Cash reserves at ₦${(cashReserveAmount / 1000000).toFixed(1)}M. Below recommended level.`,
+        description: `Cash reserves at ?${(cashReserveAmount / 1000000).toFixed(1)}M. Below recommended level.`,
         action: 'Build cash buffer'
       });
     }

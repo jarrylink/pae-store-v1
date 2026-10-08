@@ -1,7 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'));
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       WHERE id = ${user.id}
     `;
 
-    console.log('✅ Password reset successful for:', user.email);
+    console.log('? Password reset successful for:', user.email);
 
     return NextResponse.json({
       success: true,
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Reset password error:', error);
+    console.error('? Reset password error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to reset password' },
       { status: 500 }

@@ -1,11 +1,11 @@
-﻿import { neon } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import { 
   ExecutiveMetrics, RevenueMetrics, ProfitabilityMetrics, 
   OperationalMetrics, MarketplaceMetrics, CustomerMetrics, 
   ForecastMetrics, Alert, AIInsight 
 } from '../types';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'));
 
 export class ExecutiveAnalyticsService {
   

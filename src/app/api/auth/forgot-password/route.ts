@@ -1,9 +1,9 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';
 import { emailService } from '@/lib/services/emailService';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon((process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'));
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
     const resetLink = `${baseUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
 
-    console.log('🔐 Password reset link generated for:', user.email);
-    console.log('📧 Reset link:', resetLink);
+    console.log('?? Password reset link generated for:', user.email);
+    console.log('?? Reset link:', resetLink);
 
     // Send email
     try {
@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
         resetLink,
         user.firstName
       );
-      console.log('✅ Password reset email sent to:', user.email);
+      console.log('? Password reset email sent to:', user.email);
     } catch (emailError) {
-      console.error('❌ Failed to send password reset email:', emailError);
+      console.error('? Failed to send password reset email:', emailError);
       // Still return success to the user, but log the error
       // In production, you might want to return an error here
     }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Forgot password error:', error);
+    console.error('? Forgot password error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to process request' },
       { status: 500 }
