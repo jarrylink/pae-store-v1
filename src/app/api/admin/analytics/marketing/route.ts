@@ -54,11 +54,17 @@ export async function GET(request: NextRequest) {
     `;
 
     // VENDOR METRICS
-    const vendors = await sql`
-      SELECT COUNT(*) as count
-      FROM "Vendor"
-      WHERE status = 'active'
-    `;
+    let vendors: any[] = [];
+    try {
+      vendors = await sql`
+        SELECT COUNT(*) as count
+        FROM "Vendor"
+        WHERE is_active = true
+      `;
+    } catch (e) {
+      console.warn('Could not query Vendor table:', e);
+    }
+
 
     // ESG METRICS - Solar installations
     const solarInstallations = await sql`

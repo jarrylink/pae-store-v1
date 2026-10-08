@@ -123,8 +123,8 @@ export async function GET(request: NextRequest) {
         type: 'warning',
         category: 'orders',
         title: 'High Pending Payment Value',
-        message: `?${Number(pendingOrders[0].value).toLocaleString()} in pending payments (${pendingOrders[0].count} orders).`,
-        details: highValuePending.map(o => `Order ${o.orderNumber}: ?${Number(o.total).toLocaleString()}`).join(', '),
+        message: `₦${Number(pendingOrders[0].value).toLocaleString()} in pending payments (${pendingOrders[0].count} orders).`,
+        details: highValuePending.map(o => `Order ${o.orderNumber}: ₦${Number(o.total).toLocaleString()}`).join(', '),
         timestamp: now.toISOString(),
         action: 'Follow up on pending payments'
       });
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
         type: 'warning',
         category: 'revenue',
         title: 'Unusual Low Revenue Day',
-        message: `Today's revenue (?${Number(todayRevenue[0].revenue).toLocaleString()}) is 50% below average (?${Number(avgDailyRevenue[0].avg).toLocaleString()}).`,
+        message: `Today's revenue (₦${Number(todayRevenue[0].revenue).toLocaleString()}) is 50% below average (₦${Number(avgDailyRevenue[0].avg).toLocaleString()}).`,
         timestamp: now.toISOString(),
         action: 'Investigate sales performance'
       });

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, ShoppingBag, TrendingUp, Package, RefreshCw, TrendingDown } from 'lucide-react';
 
 const formatCurrency = (amount: number): string => {
-  if (!amount) return '?0';
+  if (!amount) return '₦0';
   return new Intl.NumberFormat('en-NG', {
     style: 'currency',
     currency: 'NGN',
