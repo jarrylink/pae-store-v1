@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -115,7 +115,7 @@ export default function AdminOrdersPage() {
       });
       const data = await response.json();
       if (data.success) {
-        alert(`✅ Order assigned to staff successfully!`);
+        alert(`âœ… Order assigned to staff successfully!`);
         fetchOrders();
       } else {
         alert('Failed to assign: ' + data.error);
@@ -130,7 +130,7 @@ export default function AdminOrdersPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-amber-50 text-amber-700 border-amber-200',
+      pending: 'bg-sky-50 text-sky-700 border-sky-200',
       confirmed: 'bg-blue-50 text-blue-700 border-blue-200',
       processing: 'bg-indigo-50 text-indigo-700 border-indigo-200',
       shipped: 'bg-purple-50 text-purple-700 border-purple-200',
@@ -279,7 +279,7 @@ export default function AdminOrdersPage() {
                       className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)} focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     >
                       {updatingStatus === order.id ? (
-                        <option disabled>⟳ Updating...</option>
+                        <option disabled>âŸ³ Updating...</option>
                       ) : (
                         <>
                           <option value="pending">Pending</option>
@@ -301,7 +301,7 @@ export default function AdminOrdersPage() {
                         className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]"
                       >
                         {assigningStaff === order.id ? (
-                          <option disabled>⟳ Assigning...</option>
+                          <option disabled>âŸ³ Assigning...</option>
                         ) : (
                           <>
                             <option value="">Unassigned</option>
@@ -446,7 +446,7 @@ export default function AdminOrdersPage() {
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {assigningStaff === selectedOrder.id ? (
-                      <option disabled>⟳ Assigning...</option>
+                      <option disabled>âŸ³ Assigning...</option>
                     ) : (
                       <>
                         <option value="">Unassigned</option>

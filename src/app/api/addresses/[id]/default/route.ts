@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const sql = neon(process.env.DATABASE_URL!, {
+  fetchOptions: { timeout: 30000 }
+});
 
 async function getCurrentUser(request: NextRequest) {
   try {
     const userCookie = request.cookies.get('user_data');
     if (userCookie?.value) {
-      return JSON.parse(decodeURIComponent(userCookie.value));
+      try {
+        return JSON.parse(decodeURIComponent(userCookie.value));
+      } catch (e) {
+        console.error('Error parsing user cookie:', e);
+      }
+    }
+    const userIdCookie = request.cookies.get('user_id');
+    if (userIdCookie?.value) {
+      const user = await sql`
+        SELECT id, email, "firstName", "lastName", role
+        FROM "User"
+        WHERE id = ${userIdCookie.value}
+      `;
+      if (user.length > 0) return user[0];
     }
     return null;
   } catch (error) {
@@ -24,33 +42,42 @@ export async function PUT(
   const addressId = params.id;
   
   try {
-    const currentUser = await getCurrentUser(request);
+    let bodyUserId = null;
+    try {
+      const body = await request.json();
+      bodyUserId = body?.userId;
+    } catch (_) {}
     
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const queryUserId = request.nextUrl.searchParams.get('userId');
+    const currentUser = await getCurrentUser(request);
+    const userId = bodyUserId || queryUserId || currentUser?.id;
     
     const addressCheck = await sql`
-      SELECT "userId" FROM "Address" WHERE id = ${addressId}
+      SELECT id, "userId" FROM "Address" WHERE id = ${addressId}
     `;
     
-    if (addressCheck.length === 0 || addressCheck[0].userId !== currentUser.id) {
+    if (addressCheck.length === 0) {
       return NextResponse.json({ error: 'Address not found' }, { status: 404 });
+    }
+    
+    const targetUserId = addressCheck[0].userId;
+    if (userId && targetUserId !== userId && currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
     
     await sql`
       UPDATE "Address"
       SET "isDefault" = false
-      WHERE "userId" = ${currentUser.id}
+      WHERE "userId" = ${targetUserId}
     `;
     
     await sql`
       UPDATE "Address"
-      SET "isDefault" = true
+      SET "isDefault" = true, "updatedAt" = NOW()
       WHERE id = ${addressId}
     `;
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Default address updated' });
   } catch (error) {
     console.error('Error setting default:', error);
     return NextResponse.json({ error: 'Failed to set default' }, { status: 500 });

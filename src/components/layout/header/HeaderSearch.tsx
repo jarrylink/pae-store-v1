@@ -1,9 +1,14 @@
 ﻿'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 const HeaderSearch: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+  
+  // Hide search toggle on products page
+  const isProductsPage = pathname === '/products' || pathname?.startsWith('/products/');
 
   useEffect(() => {
     const handleToggleSearch = (event: CustomEvent) => {
@@ -13,7 +18,7 @@ const HeaderSearch: React.FC = () => {
         setIsOpen(prev => !prev);
       }
     };
-    
+
     window.addEventListener('toggleSearchPanel', handleToggleSearch as EventListener);
     return () => window.removeEventListener('toggleSearchPanel', handleToggleSearch as EventListener);
   }, []);
@@ -23,12 +28,17 @@ const HeaderSearch: React.FC = () => {
     window.dispatchEvent(event);
   };
 
+  // Don't render on products page
+  if (isProductsPage) {
+    return null;
+  }
+
   return (
     <button
       onClick={toggleSearch}
       className={`p-2 transition-all duration-300 hover:scale-110 ${
-        isOpen 
-          ? 'text-[#40b553] dark:text-green-400' 
+        isOpen
+          ? 'text-[#40b553] dark:text-green-400'
           : 'text-gray-600 dark:text-gray-300 animate-heartbeat'
       }`}
       aria-label="Search"

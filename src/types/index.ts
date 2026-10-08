@@ -1,13 +1,13 @@
-﻿export interface Product {
+export interface Product {
   id: number;
   title: string;
   brand: string;
   spec: string;
   price: number;
-  purchasePrice: number;
-  vendorPrice: number;
+  purchasePrice?: number;
+  vendorPrice?: number;
   image: string;
-  category: "Solar Panel" | "Inverter" | "Battery" | "Kit" | "Accessory";
+  category: string;
   warranty: string;
   installationTime?: string;
   capacity?: string;
@@ -16,15 +16,25 @@
   inStock: boolean;
   inventory: number;
   systemType?: string;
+  isActive?: boolean;
   updatedAt?: string;
   createdAt?: string;
 }
 
 export interface CartItem extends Product {
   quantity: number;
+  type?: 'product' | 'service' | 'accessory';
+  serviceId?: number;
+  accessoryId?: number;
+  productId?: number;
+  unit?: string;
 }
 
 // Add other exports as needed...
+
+
+
+
 
 
 

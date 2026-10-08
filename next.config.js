@@ -20,6 +20,8 @@ const nextConfig = {
   reactStrictMode: true,
   // Configure Turbopack for development
   turbopack: {
+    // Keep file watching and module resolution inside this project.
+    root: __dirname,
     resolveAlias: {
       // Add any aliases here if needed
     },

@@ -1,12 +1,17 @@
 ﻿'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Header from './header/Header';
 import StickySearchPanel from '../features/search/StickySearchPanel';
 
 const StickyHeaderWrapper: React.FC = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const pathname = usePathname();
+  
+  // Hide search on products page
+  const isProductsPage = pathname === '/products' || pathname?.startsWith('/products/');
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -37,7 +42,7 @@ const StickyHeaderWrapper: React.FC = () => {
         setIsSearchVisible(prev => !prev);
       }
     };
-    
+
     window.addEventListener('toggleSearchPanel', handleToggle as EventListener);
     return () => window.removeEventListener('toggleSearchPanel', handleToggle as EventListener);
   }, []);
@@ -45,13 +50,15 @@ const StickyHeaderWrapper: React.FC = () => {
   return (
     <div ref={wrapperRef} className="w-full bg-white dark:bg-gray-900">
       <Header />
-      <div className={`transition-all duration-300 ease-in-out ${
-        isSearchVisible 
-          ? 'opacity-100 translate-y-0' 
-          : 'opacity-0 -translate-y-full pointer-events-none absolute w-full'
-      }`}>
-        <StickySearchPanel />
-      </div>
+      {!isProductsPage && (
+        <div className={`transition-all duration-300 ease-in-out ${
+          isSearchVisible
+            ? 'opacity-100 translate-y-0'
+            : 'opacity-0 -translate-y-full pointer-events-none absolute w-full'
+        }`}>
+          <StickySearchPanel />
+        </div>
+      )}
     </div>
   );
 };

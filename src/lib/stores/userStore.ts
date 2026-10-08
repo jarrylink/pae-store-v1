@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { UserProfile, WishlistItem, Order, Address } from '@/types/auth';
 
@@ -14,6 +14,7 @@ interface UserState {
   addToWishlist: (item: WishlistItem) => void;
   removeFromWishlist: (productId: number) => Promise<void>;
   setOrders: (orders: Order[]) => void;
+  updateOrder: (updatedOrder: any) => void;
   setAddresses: (addresses: Address[]) => void;
   // Address actions with API
   addAddress: (address: Omit<Address, 'id'>) => Promise<void>;
@@ -79,6 +80,9 @@ export const useUserProfileStore = create<UserState>()(
       },
       
       setOrders: (orders) => set({ orders }),
+      updateOrder: (updatedOrder: any) => set((state) => ({
+        orders: state.orders.map(o => o.id === Number(updatedOrder.id) ? { ...o, ...updatedOrder } : o)
+      })),
       setAddresses: (addresses) => set({ addresses }),
       
       // Address CRUD operations with API

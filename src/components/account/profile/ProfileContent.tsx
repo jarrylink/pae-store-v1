@@ -1,8 +1,19 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { User } from '@/types/auth';
 import { useNotificationStore } from '@/lib/stores/notificationStore';
+import { 
+  User as UserIcon, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  Camera, 
+  Save, 
+  X, 
+  Edit2,
+  CheckCircle
+} from 'lucide-react';
 
 interface ProfileContentProps {
   user: User;
@@ -68,12 +79,16 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
     <div className="space-y-6">
       {/* Profile Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Profile Information</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <UserIcon className="w-7 h-7 text-[#1a2a8a] dark:text-green-400" />
+          Profile Information
+        </h2>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 bg-[#1a2a8a] hover:bg-[#0f1a66] text-white rounded-lg font-medium transition-colors"
+            className="px-4 py-2 bg-[#1a2a8a] hover:bg-[#0f1a66] text-white rounded-lg font-medium transition-colors flex items-center gap-2"
           >
+            <Edit2 className="w-4 h-4" />
             Edit Profile
           </button>
         )}
@@ -93,10 +108,7 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
                 htmlFor="avatar-upload"
                 className="absolute bottom-0 right-0 bg-[#1a2a8a] hover:bg-[#0f1a66] text-white p-1.5 rounded-full cursor-pointer transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                <Camera className="w-4 h-4" />
                 <input
                   id="avatar-upload"
                   type="file"
@@ -117,12 +129,15 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address (cannot be changed)
               </label>
-              <input
-                type="email"
-                value={user.email || ''}
-                disabled
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="email"
+                  value={user.email || ''}
+                  disabled
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                />
+              </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Email address cannot be changed. Contact support if you need to update it.
               </p>
@@ -157,14 +172,17 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Phone Number
               </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="+234 800 000 0000"
-              />
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="+234 800 000 0000"
+                />
+              </div>
             </div>
           </div>
 
@@ -173,8 +191,9 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="px-6 py-2 bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="px-6 py-2 bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
             >
+              <Save className="w-4 h-4" />
               {isLoading ? 'Saving...' : 'Save Changes'}
             </button>
             <button
@@ -190,8 +209,9 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
                 setAvatarFile(null);
                 setAvatarPreview(null);
               }}
-              className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
+              <X className="w-4 h-4" />
               Cancel
             </button>
           </div>
@@ -206,10 +226,14 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
               className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
             />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 {user.firstName} {user.lastName}
+                <CheckCircle className="w-4 h-4 text-green-500" />
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Mail className="w-3 h-3" />
+                {user.email}
+              </p>
             </div>
           </div>
 
@@ -223,15 +247,24 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ user, onUpdate }) => {
               <p className="text-gray-900 dark:text-white">{user.lastName}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Mail className="w-3 h-3" />
+                Email
+              </p>
               <p className="text-gray-900 dark:text-white">{user.email}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Phone</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Phone className="w-3 h-3" />
+                Phone
+              </p>
               <p className="text-gray-900 dark:text-white">{user.phone || 'Not provided'}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Member Since</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                Member Since
+              </p>
               <p className="text-gray-900 dark:text-white">
                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
               </p>

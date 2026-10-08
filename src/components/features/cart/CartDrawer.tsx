@@ -1,13 +1,19 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/stores/cartStore';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useUserProfileStore } from '@/lib/stores/userStore';
 import { useServiceStore } from '@/lib/stores/serviceStore';
 import { useNotificationStore } from '@/lib/stores/notificationStore';
 import { formatCurrency } from '@/utils';
 import { Address } from '@/types/auth';
+import { Package } from 'lucide-react';
+import AccessorySelectionPopup from './AccessorySelectionPopup';
+import InstallationAccessories from './InstallationAccessories';
+import LoginModal from '@/components/auth/LoginModal';
+import RegisterModal from '@/components/auth/RegisterModal';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -19,6 +25,9 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const { user, isAuthenticated } = useAuthStore();
   const { services, fetchServices } = useServiceStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showAccessoryPopup, setShowAccessoryPopup] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('none');
   const [serviceQuantity, setServiceQuantity] = useState<number>(0);
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
@@ -26,28 +35,52 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
   const {
     items,
+    accessories,
     removeItem,
     updateQuantity,
+    addAccessory,
+    removeAccessory,
+    setService,
     clearCart,
+    editingOrderId,
+    editingOrderNumber,
+    cancelEditingOrder,
+    finishEditingOrder,
   } = useCartStore();
 
-  // Calculate items subtotal
-  const itemsSubtotal = items.reduce((total, item) => {
+  const productItems = items.filter(i => i.type !== 'service' && i.serviceId == null);
+  const serviceItems = items.filter(i => i.type === 'service' || i.serviceId != null);
+
+  const productTotal = productItems.reduce((total, item) => {
     return total + (Number(item.price) * Number(item.quantity));
   }, 0);
 
-  // Get selected service details
+  // Sync service from store if present
+  useEffect(() => {
+    if (serviceItems.length > 0) {
+      const active = serviceItems[0];
+      setSelectedServiceId((active.serviceId || active.id).toString());
+      setServiceQuantity(Number(active.quantity || 1));
+    } else if (selectedServiceId !== 'none') {
+      setSelectedServiceId('none');
+      setServiceQuantity(0);
+    }
+  }, [items.length]);
+
   const selectedService = selectedServiceId !== 'none'
-    ? services.find(s => s.id.toString() === selectedServiceId)
+    ? (services.find(s => s.id.toString() === selectedServiceId) || (serviceItems[0] ? {
+        id: serviceItems[0].serviceId || serviceItems[0].id,
+        name: serviceItems[0].title,
+        price: serviceItems[0].price
+      } : null))
     : null;
 
   const servicePrice = selectedService?.price || 0;
   const serviceTotal = Number(servicePrice) * Number(serviceQuantity);
 
-  // Calculate grand total - items plus service only (NO extra fees)
-  const grandTotal = itemsSubtotal + serviceTotal;
+  const accessoriesTotal = accessories.reduce((sum, a) => sum + (Number(a.price) * Number(a.quantity)), 0);
+  const grandTotal = productTotal + serviceTotal + accessoriesTotal;
 
-  // Fetch services and addresses on mount
   useEffect(() => {
     if (isOpen) {
       fetchServices();
@@ -74,38 +107,69 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Handle service selection
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newServiceId = e.target.value;
     setSelectedServiceId(newServiceId);
 
     if (newServiceId !== 'none') {
-      setServiceQuantity(1);
+      const s = services.find(srv => srv.id.toString() === newServiceId);
+      if (s) {
+        setService(s, 1);
+        setServiceQuantity(1);
+      }
     } else {
+      setService(null);
       setServiceQuantity(0);
     }
   };
 
-  // Update service quantity
   const updateServiceQuantity = (newQuantity: number) => {
-    if (newQuantity >= 0 && newQuantity <= 10) {
+    if (newQuantity <= 0) {
+      setService(null);
+      setSelectedServiceId('none');
+      setServiceQuantity(0);
+    } else if (newQuantity <= 10) {
       setServiceQuantity(newQuantity);
+      const s = services.find(srv => srv.id.toString() === selectedServiceId) || (serviceItems[0] ? {
+        id: serviceItems[0].serviceId || serviceItems[0].id,
+        name: serviceItems[0].title,
+        price: serviceItems[0].price
+      } : null);
+      if (s) {
+        setService(s, newQuantity);
+      }
     }
   };
 
+  const handleRemoveAccessory = (accessoryId: number) => {
+    removeAccessory(accessoryId);
+  };
+
   const handleCheckout = async () => {
+    // 🔒 IMMEDIATE AUTH CHECK
+    console.log('🔒 Checking authentication...', { isAuthenticated });
+    
+    if (!isAuthenticated) {
+        console.log('🔒 Not authenticated - showing login modal');
+        setShowLoginModal(true);
+        return; // ⚠️ CRITICAL: Stop execution here!
+    }
     if (isSubmitting) return;
 
-    // Check authentication first
-    if (!isAuthenticated || !user) {
-      useNotificationStore.getState().addNotification('error', 'Please sign in to continue with your purchase');
-      router.push('/login');
-      onClose();
+    if (items.length === 0 && serviceQuantity === 0 && accessories.length === 0) {
+      useNotificationStore.getState().addNotification('warning', 'Your cart is empty');
       return;
     }
 
-    if (items.length === 0 && serviceQuantity === 0) {
-      useNotificationStore.getState().addNotification('warning', 'Your cart is empty');
+    if (!isAuthenticated || !user) {
+      localStorage.setItem('checkout_cart', JSON.stringify({
+        items,
+        accessories,
+        serviceQuantity
+      }));
+      localStorage.setItem('checkout_redirect', '/checkout');
+      setShowLoginModal(true);
+      onClose();
       return;
     }
 
@@ -119,48 +183,56 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
       const customerPhone = user.phone || '';
       const customerEmail = user.email || '';
 
-      // Prepare items array with both products and service
-      const orderItems = [
-        ...items.map((item, index) => ({
-          productId: item.id,
+      const orderItems = items.map((item, index) => {
+        const isService = item.type === 'service' || item.serviceId != null;
+        return {
+          productId: isService ? undefined : (item.productId || item.id),
+          serviceId: isService ? (item.serviceId || item.id) : undefined,
           name: item.title,
           title: item.title,
           price: Number(item.price),
           quantity: Number(item.quantity),
-          image: item.image,
-          lineItemId: `product_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-          type: 'product'
-        }))
-      ];
+          image: item.image || '',
+          type: isService ? ('service' as const) : ('product' as const),
+          lineItemId: `${isService ? 'service' : 'product'}_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`
+        };
+      });
 
-      // Add service as a separate line item if selected
-      if (selectedService && serviceQuantity > 0) {
+      const hasExistingServiceInItems = orderItems.some(i => i.type === 'service');
+      if (!hasExistingServiceInItems && selectedService && serviceQuantity > 0) {
         orderItems.push({
-          productId: selectedService.id,
+          productId: undefined,
+          serviceId: selectedService.id,
           name: selectedService.name,
           title: selectedService.name,
           price: Number(selectedService.price),
           quantity: serviceQuantity,
-          image: selectedService.image || '',
-          lineItemId: `service_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          type: 'service'
+          image: (selectedService as any).image || '',
+          type: 'service',
+          lineItemId: `service_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         });
       }
 
-      // Prepare service data
-      const serviceData = selectedService && serviceQuantity > 0 ? {
-        serviceId: selectedService.id,
-        serviceName: selectedService.name,
-        servicePrice: servicePrice,
-        hasService: true
-      } : {
-        serviceId: null,
-        serviceName: null,
-        servicePrice: 0,
-        hasService: false
-      };
+      const orderAccessoriesData = accessories.map((a, index) => ({
+        accessoryId: Number((a as any).accessoryId || a.id || 0),
+        name: a.title || '',
+        quantity: Number(a.quantity || 1),
+        unit_price: Number(a.price || 0),
+        total_price: Number(a.price || 0) * Number(a.quantity || 1),
+        unit: (a as any)?.unit || 'piece',
+      }));
 
-      // Prepare shipping address data
+      const productTotal = orderItems
+        .filter(item => item.type !== 'service')
+        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      const serviceTotalCalc = orderItems
+        .filter(item => item.type === 'service')
+        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      const accessoryTotalCalc = orderAccessoriesData.reduce((sum, a) => sum + a.total_price, 0);
+      const grandTotalCalc = productTotal + serviceTotalCalc + accessoryTotalCalc;
+
       const shippingAddressData = selectedAddress ? {
         id: selectedAddress.id,
         name: selectedAddress.name || customerName,
@@ -184,55 +256,71 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         isDefault: false
       };
 
+      const serviceItems = orderItems.filter(i => i.type === 'service');
+
       const orderData = {
         userId: user.id,
         customerName: customerName,
         customerPhone: customerPhone,
         customerEmail: customerEmail,
         items: orderItems,
-        subtotal: itemsSubtotal,
+        accessories: orderAccessoriesData,
+        subtotal: productTotal + accessoryTotalCalc + serviceTotalCalc,
         shipping: 0,
         tax: 0,
-        total: grandTotal, // This already includes service fee
+        total: grandTotalCalc,
         status: 'pending',
         paymentMethod: 'bank_transfer',
         notes: '',
-        ...serviceData,
+        hasService: serviceTotalCalc > 0,
+        serviceId: serviceItems[0]?.serviceId || null,
+        serviceName: serviceItems[0]?.name || null,
+        servicePrice: serviceTotalCalc,
         shippingAddress: shippingAddressData
       };
 
-      console.log('Submitting order with data:', JSON.stringify(orderData, null, 2));
-      console.log('Total breakdown:', { itemsSubtotal, servicePrice, serviceTotal, grandTotal });
-
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
-      });
+      let response;
+      if (editingOrderId) {
+        response = await fetch(`/api/orders/${editingOrderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData),
+        });
+      } else {
+        response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData),
+        });
+      }
 
       const responseData = await response.json();
 
       if (!response.ok) {
-        console.error('Order creation failed:', responseData);
-        throw new Error(responseData.error || responseData.details || 'Failed to create order');
+        throw new Error(responseData.error || responseData.details || (editingOrderId ? 'Failed to update order' : 'Failed to create order'));
       }
 
-      clearCart();
-      
-      // Show success notification
-      useNotificationStore.getState().addNotification('success', 
-        `? Thank you! Order #${responseData.id} has been placed successfully!\n\nYou can view it in your orders section. Need help? Our team is ready to assist.`
-      );
-      
-      // Store order ID for reference
-      sessionStorage.setItem('lastOrderId', responseData.id);
-      
-      // Redirect to account page with orders tab
+      if (editingOrderId) {
+        const updatedNumber = responseData.orderNumber || responseData.id || editingOrderNumber || editingOrderId;
+        useUserProfileStore.getState().updateOrder(responseData);
+        finishEditingOrder();
+        useNotificationStore.getState().addNotification('success',
+          `Order #${updatedNumber} has been updated successfully!`
+        );
+        router.refresh();
+      } else {
+        clearCart();
+        useNotificationStore.getState().addNotification('success',
+          `Thank you! Order #${responseData.id} has been placed successfully!`
+        );
+      }
+
+      onClose();
       router.push('/account?tab=orders');
 
     } catch (error) {
       console.error('Checkout error:', error);
-      useNotificationStore.getState().addNotification('error', 
+      useNotificationStore.getState().addNotification('error',
         error instanceof Error ? error.message : 'Unable to place order. Please try again.'
       );
     } finally {
@@ -243,138 +331,182 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-transparent" onClick={onClose} />
-      <div className="w-96 h-full bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your Cart</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-
-        {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {items.length === 0 && serviceQuantity === 0 ? (
-            <div className="text-center py-12">
-              <svg className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+    <>
+      <div className="fixed inset-0 z-50 flex">
+        <div className="flex-1 bg-transparent" onClick={onClose} />
+        <div className="w-full sm:w-96 h-full bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700 flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your Cart</h3>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
-              <p className="mt-4 text-gray-500 dark:text-gray-400">Your cart is empty</p>
-            </div>
-          ) : (
-            <>
-              {/* Product Items */}
-              {items.map((item, index) => (
-                <div key={item.id || `product-${index}`} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <img 
-                    src={item.image || '/placeholder-image.png'} 
-                    alt={item.title || 'Product'} 
-                    className="w-16 h-16 object-cover rounded"
-                    onError={(e) => { e.currentTarget.src = '/placeholder-image.png'; }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{item.title}</h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(Number(item.price))} each</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded text-xs">
-                        <button
-                          onClick={() => updateQuantity(item.id, Number(item.quantity) - 1)}
-                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
-                          disabled={item.quantity <= 1}
-                        >-</button>
-                        <span className="px-2 py-1 text-gray-900 dark:text-white min-w-[24px] text-center">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.id, Number(item.quantity) + 1)}
-                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
-                        >+</button>
-                      </div>
-                      <button onClick={() => removeItem(item.id)} className="text-red-500 text-xs hover:underline">Remove</button>
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(Number(item.price) * Number(item.quantity))}
-                  </div>
-                </div>
-              ))}
+            </button>
+          </div>
 
-              {/* Service Item - Shows when service selected */}
-              {selectedService && serviceQuantity > 0 && (
-                <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded flex items-center justify-center text-white">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{selectedService.name}</h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(Number(selectedService.price))} each</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded text-xs">
-                        <button
-                          onClick={() => updateServiceQuantity(serviceQuantity - 1)}
-                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
-                          disabled={serviceQuantity <= 1}
-                        >-</button>
-                        <span className="px-2 py-1 text-gray-900 dark:text-white min-w-[24px] text-center">{serviceQuantity}</span>
-                        <button
-                          onClick={() => updateServiceQuantity(serviceQuantity + 1)}
-                          className="px-2 py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
-                          disabled={serviceQuantity >= 10}
-                        >+</button>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedServiceId('none');
-                          setServiceQuantity(0);
-                        }}
-                        className="text-red-500 text-xs hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(serviceTotal)}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Footer - Compact Design */}
-        {items.length > 0 || serviceQuantity > 0 ? (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            {/* Service and Address in one row */}
-            <div className="flex gap-2 mb-3">
-              <div className="flex-1">
-                <select
-                  value={selectedServiceId}
-                  onChange={handleServiceChange}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="none">No Service</option>
-                  {services.filter(s => s.isActive).map(service => (
-                    <option key={service.id} value={service.id}>
-                      {service.name} (+{formatCurrency(Number(service.price))})
-                    </option>
-                  ))}
-                </select>
+          {editingOrderId && (
+            <div className="bg-blue-50 dark:bg-blue-950/40 border-b border-blue-200 dark:border-blue-800 p-3 flex items-center justify-between text-xs">
+              <div>
+                <span className="font-bold text-blue-900 dark:text-blue-200 block">
+                  Editing Order #{editingOrderNumber || editingOrderId}
+                </span>
+                <span className="text-blue-600 dark:text-blue-300">
+                  Updates this pending order
+                </span>
               </div>
-              
-              {savedAddresses.length > 0 && (
+              <button
+                onClick={() => {
+                  cancelEditingOrder();
+                  useNotificationStore.getState().addNotification('info', 'Order editing cancelled. Cart reverted.');
+                }}
+                className="px-2.5 py-1 font-semibold text-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {items.length === 0 && serviceQuantity === 0 && accessories.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <p className="mt-4 text-gray-500 dark:text-gray-400">Your cart is empty</p>
+              </div>
+            ) : (
+              <>
+                {productItems.map((item, index) => (
+                  <div key={item.id || `product-${index}`} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <img
+                      src={item.image || '/placeholder-image.png'}
+                      alt={item.title || 'Product'}
+                      className="w-16 h-16 object-cover rounded"
+                      onError={(e) => { e.currentTarget.src = '/placeholder-image.png'; }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{item.title}</h4>
+                      <p className="text-sm sm:text-xs text-gray-500 dark:text-gray-400">{formatCurrency(Number(item.price))} each</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded text-sm sm:text-xs">
+                          <button
+                            onClick={() => updateQuantity(item.id, Number(item.quantity) - 1)}
+                            className="px-3 py-2 sm:px-2 sm:py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            disabled={item.quantity <= 1}
+                          >-</button>
+                          <span className="px-3 py-2 sm:px-2 sm:py-1 text-gray-900 dark:text-white min-w-[24px] text-center">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.id, Number(item.quantity) + 1)}
+                            className="px-3 py-2 sm:px-2 sm:py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          >+</button>
+                        </div>
+                        <button onClick={() => removeItem(item.id)} className="text-red-500 text-sm sm:text-xs hover:underline">Remove</button>
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(Number(item.price) * Number(item.quantity))}
+                    </div>
+                  </div>
+                ))}
+
+                {accessories.length > 0 && (
+                  <InstallationAccessories
+                    accessories={accessories.map(a => ({
+                      id: a.id,
+                      name: a.title,
+                      price: a.price,
+                      quantity: a.quantity,
+                      image: a.image,
+                      unit: 'piece'
+                    }))}
+                    title="Installation Accessories"
+                    className="mt-4"
+                    onRemove={handleRemoveAccessory}
+                  />
+                )}
+
+                {selectedService && serviceQuantity > 0 && (
+                  <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded flex items-center justify-center text-white">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">{selectedService.name}</h4>
+                      <p className="text-sm sm:text-xs text-gray-500 dark:text-gray-400">{formatCurrency(Number(selectedService.price))} each</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded text-sm sm:text-xs">
+                          <button
+                            onClick={() => updateServiceQuantity(serviceQuantity - 1)}
+                            className="px-3 py-2 sm:px-2 sm:py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            disabled={serviceQuantity <= 1}
+                          >-</button>
+                          <span className="px-3 py-2 sm:px-2 sm:py-1 text-gray-900 dark:text-white min-w-[24px] text-center">{serviceQuantity}</span>
+                          <button
+                            onClick={() => updateServiceQuantity(serviceQuantity + 1)}
+                            className="px-3 py-2 sm:px-2 sm:py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            disabled={serviceQuantity >= 10}
+                          >+</button>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedServiceId('none');
+                            setServiceQuantity(0);
+                          }}
+                          className="text-red-500 text-sm sm:text-xs hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(serviceTotal)}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {(items.length > 0 || serviceQuantity > 0 || accessories.length > 0) && (
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex gap-2 mb-3">
                 <div className="flex-1">
+                  <select
+                    value={selectedServiceId}
+                    onChange={handleServiceChange}
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 sm:px-2 sm:py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="none">No Service</option>
+                    {services.filter(s => s.isActive).map(service => (
+                      <option key={service.id} value={service.id}>
+                        {service.name} (+{formatCurrency(Number(service.price))})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex-1">
+                  <button
+                    onClick={() => setShowAccessoryPopup(true)}
+                    className="w-full text-sm border border-dashed border-[#1a2a8a] dark:border-green-400 rounded-lg px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-[#1a2a8a] dark:text-green-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Package className="w-4 h-4" />
+                    Add Accessories
+                  </button>
+                </div>
+              </div>
+
+              {savedAddresses.length > 0 && (
+                <div className="mb-3">
                   <select
                     value={selectedAddress?.id || ''}
                     onChange={(e) => {
                       const addr = savedAddresses.find(a => a.id === e.target.value);
                       setSelectedAddress(addr || null);
                     }}
-                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 sm:px-2 sm:py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="">Select address</option>
                     {savedAddresses.map(addr => (
@@ -386,46 +518,108 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   </select>
                 </div>
               )}
-            </div>
 
-            {/* Address helper for users with no addresses */}
-            {savedAddresses.length === 0 && (
-              <div className="text-xs text-center text-gray-500 bg-gray-50 dark:bg-gray-700 p-2 rounded-lg mb-3">
-                <span>No saved address. </span>
-                <button
-                  onClick={() => {
-                    onClose();
-                    router.push('/account?tab=addresses');
-                  }}
-                  className="text-[#1a2a8a] dark:text-green-400 hover:underline"
-                >
-                  Add one
-                </button>
+              {savedAddresses.length === 0 && (
+                <div className="text-sm sm:text-xs text-center text-gray-500 bg-gray-50 dark:bg-gray-700 p-2 rounded-lg mb-3">
+                  <span>No saved address. </span>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      router.push('/account?tab=addresses');
+                    }}
+                    className="text-[#1a2a8a] dark:text-green-400 hover:underline"
+                  >
+                    Add one
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="font-semibold text-gray-900 dark:text-white">Total:</span>
+                <span className="text-xl font-bold text-[#1a2a8a] dark:text-green-400">
+                  {formatCurrency(grandTotal)}
+                </span>
               </div>
-            )}
 
-            {/* Total */}
-            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-              <span className="font-semibold text-gray-900 dark:text-white">Total:</span>
-              <span className="text-xl font-bold text-[#1a2a8a] dark:text-green-400">
-                {formatCurrency(grandTotal)}
-              </span>
+              <button
+                onClick={handleCheckout}
+                disabled={isSubmitting || (items.length === 0 && serviceQuantity === 0 && accessories.length === 0)}
+                className="w-full mt-3 bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isSubmitting
+                  ? (editingOrderId ? 'Updating Order...' : 'Placing Order...')
+                  : (editingOrderId ? 'Update Order' : 'Place Order')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  router.push('/cart');
+                }}
+                className="w-full mt-2 text-center text-xs text-[#1a2a8a] dark:text-green-400 hover:underline font-medium py-1"
+              >
+                Open Full 3-Phase Cart Page →
+              </button>
             </div>
-
-            {/* Checkout Button */}
-            <button
-              onClick={handleCheckout}
-              disabled={isSubmitting || (items.length === 0 && serviceQuantity === 0)}
-              className="w-full mt-3 bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {isSubmitting ? 'Placing Order...' : 'Place Order'}
-            </button>
-          </div>
-        ) : null}
+          )}
+        </div>
       </div>
-    </div>
+
+      <AccessorySelectionPopup
+        isOpen={showAccessoryPopup}
+        onClose={() => setShowAccessoryPopup(false)}
+        onAddToOrder={(selectedItems) => {
+          selectedItems.forEach((item) => {
+            addAccessory({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              stock: item.stock || 0,
+              image: item.image || '',
+        unit: (item as any)?.unit || 'piece',
+              isActive: true
+            }, item.quantity);
+          });
+        }}
+      />
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false);
+          const redirect = localStorage.getItem('checkout_redirect');
+          if (redirect) {
+            localStorage.removeItem('checkout_redirect');
+            router.push(redirect);
+          }
+        }}
+        onSwitchToRegister={() => {
+          setShowLoginModal(false);
+          setShowRegisterModal(true);
+        }}
+      />
+
+      <RegisterModal
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        onSwitchToLogin={() => {
+          setShowRegisterModal(false);
+          setShowLoginModal(true);
+        }}
+      />
+    </>
   );
 };
 
 export default CartDrawer;
+
+
+
+
+
+
+
+
+
 

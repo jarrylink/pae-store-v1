@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -317,7 +317,7 @@ const AnalyticsDashboard: React.FC = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <div className={`w-1.5 h-1.5 rounded-full ${
                     insight.type === 'positive' ? 'bg-[#40b553]' :
-                    insight.type === 'alert' ? 'bg-amber-500' :
+                    insight.type === 'alert' ? 'bg-blue-500' :
                     insight.type === 'critical' ? 'bg-rose-500' : 'bg-gray-400'
                   }`} />
                   <h4 className="text-xs font-medium text-gray-500 uppercase">{insight.title}</h4>
@@ -416,8 +416,8 @@ const AnalyticsDashboard: React.FC = () => {
           <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Fulfillment Pipeline</h2>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          <div className="text-center p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10">
-            <Clock className="w-4 h-4 text-amber-500 mx-auto mb-1" />
+          <div className="text-center p-3 rounded-xl bg-sky-50 dark:bg-sky-900/10">
+            <Clock className="w-4 h-4 text-sky-500 mx-auto mb-1" />
             <p className="text-xs text-gray-500">Pending</p>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">{metrics?.operational?.orders?.pending || 0}</p>
           </div>
@@ -451,12 +451,12 @@ const AnalyticsDashboard: React.FC = () => {
 
       {/* Low Stock Alert */}
       {alerts?.lowStockCount > 0 && (
-        <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-5 border border-amber-200 dark:border-amber-800/30">
+        <div className="bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-5 border border-blue-200 dark:border-blue-800/30">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
+            <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
             <div>
-              <h3 className="text-sm font-medium text-amber-800 dark:text-amber-400">Inventory Alert</h3>
-              <p className="text-sm text-amber-700 dark:text-amber-500 mt-1">{alerts.lowStockCount} products running low on stock. Restock recommended.</p>
+              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-400">Inventory Alert</h3>
+              <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">{alerts.lowStockCount} products running low on stock. Restock recommended.</p>
             </div>
           </div>
         </div>

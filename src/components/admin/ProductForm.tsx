@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/types';
@@ -78,8 +78,13 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
     if (!formData.title.trim()) newErrors.title = 'Product title is required';
     if (!formData.brand.trim()) newErrors.brand = 'Brand is required';
     if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = 'Selling price must be greater than 0';
-    if (!formData.inventory || parseInt(formData.inventory) < 0) newErrors.inventory = 'Inventory cannot be negative';
+    for (const field of ['price', 'purchasePrice', 'vendorPrice', 'inventory'] as const) {
+      const value = Number(formData[field]);
+      if (!formData[field].trim() || !Number.isInteger(value) || value < 0 || value > 2147483647) {
+        newErrors[field] = 'Enter a non-negative whole number (maximum 2147483647)';
+      }
+    }
+    if (Number(formData.price) <= 0) newErrors.price = 'Selling price must be greater than 0';
     if (!formData.spec.trim()) newErrors.spec = 'Specifications are required';
     if (!formData.image.trim()) newErrors.image = 'Image URL is required';
 
@@ -90,7 +95,7 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (isSubmitting || !validateForm()) {
       return;
     }
 
@@ -101,6 +106,7 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
       vendorPrice: parseFloat(formData.vendorPrice) || 0,
       inventory: parseInt(formData.inventory),
       inStock: parseInt(formData.inventory) > 0,
+      isActive: product ? (product.isActive !== undefined ? product.isActive : true) : true,
       ...(product ? {} : {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -247,6 +253,7 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
                 min="0"
                 
               />
+              {errors.purchasePrice && <p className="mt-1 text-sm text-red-600">{errors.purchasePrice}</p>}
               <p className="mt-1 text-xs text-gray-500">What you paid to supplier</p>
             </div>
 
@@ -263,6 +270,7 @@ export default function ProductForm({ product, onSubmit, onCancel, isSubmitting 
                 min="0"
                 
               />
+              {errors.vendorPrice && <p className="mt-1 text-sm text-red-600">{errors.vendorPrice}</p>}
               <p className="mt-1 text-xs text-gray-500">Price quoted by vendor</p>
             </div>
 

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { Order } from '@/types/auth';
@@ -29,7 +29,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
   };
 
   const getStatusText = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
+    return (status || "").charAt(0).toUpperCase() + (status || "").slice(1).replace('_', ' ');
   };
 
   const formatDate = (date: string | Date) => {
@@ -61,7 +61,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
 
   const handleWhatsAppChat = () => {
     // Format message with order details
-    const message = `Hello Power Afric Team, I would like to discuss my order #${order.orderNumber || order.id} (Total: ₦${order.total.toLocaleString()}).`;
+    const message = `Hello Power Afric Team, I would like to discuss my order #${order.orderNumber || order.id} (Total: â‚¦${order.total.toLocaleString()}).`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/2348000000000?text=${encodedMessage}`, '_blank');
   };
@@ -157,7 +157,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
                       {item.name}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {item.quantity} × {formatCurrency(item.price)}
+                      {item.quantity} Ã— {formatCurrency(item.price)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -209,7 +209,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, isAdmin = false, onStatusU
             </p>
             {order.shippingAddress?.phone && (
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                📞 {order.shippingAddress.phone}
+                ðŸ“ž {order.shippingAddress.phone}
               </p>
             )}
           </div>

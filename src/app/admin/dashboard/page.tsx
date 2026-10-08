@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -107,7 +107,7 @@ export default function AdminDashboard() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-amber-50 text-amber-700',
+      pending: 'bg-sky-50 text-sky-700',
       confirmed: 'bg-blue-50 text-blue-700',
       processing: 'bg-indigo-50 text-indigo-700',
       shipped: 'bg-purple-50 text-purple-700',
@@ -216,10 +216,10 @@ export default function AdminDashboard() {
               {data.products.lowStock > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3 text-amber-500" />
+                    <AlertTriangle className="w-3 h-3 text-sky-500" />
                     Low Stock
                   </span>
-                  <span className="font-medium text-amber-600">{data.products.lowStock}</span>
+                  <span className="font-medium text-sky-600">{data.products.lowStock}</span>
                 </div>
               )}
             </div>
@@ -252,7 +252,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-2 text-sm pt-1">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Pending</span>
-                  <span className="font-medium text-amber-600">{data.orders.pending}</span>
+                  <span className="font-medium text-sky-600">{data.orders.pending}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Confirmed</span>
@@ -352,13 +352,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-amber-50 rounded-xl p-5 border border-amber-100">
+        <div className="bg-sky-50 rounded-xl p-5 border border-sky-100">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-xs text-amber-600 font-medium uppercase">Pending Payment</p>
-              <p className="text-2xl font-semibold text-amber-900 mt-1">{data.orders.pending}</p>
+              <p className="text-xs text-sky-600 font-medium uppercase">Pending Payment</p>
+              <p className="text-2xl font-semibold text-sky-900 mt-1">{data.orders.pending}</p>
             </div>
-            <Clock className="w-8 h-8 text-amber-500" />
+            <Clock className="w-8 h-8 text-sky-500" />
           </div>
         </div>
 
@@ -421,7 +421,7 @@ export default function AdminDashboard() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       order.paymentStatus === 'paid' 
                         ? 'bg-emerald-50 text-emerald-700' 
-                        : 'bg-amber-50 text-amber-700'
+                        : 'bg-sky-50 text-sky-700'
                     }`}>
                       {order.paymentStatus?.toUpperCase() || 'PENDING'}
                     </span>

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { 
@@ -30,7 +30,7 @@ const advantages: Advantage[] = [
     title: 'Premium Quality',
     description: 'High-grade materials with international certifications for lasting performance',
     icon: <Award className="w-8 h-8" />,
-    color: 'from-yellow-500 to-amber-500'
+    color: 'from-blue-500 to-blue-700'
   },
 
   {

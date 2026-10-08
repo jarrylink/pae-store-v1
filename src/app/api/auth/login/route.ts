@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
 const sql = neon(process.env.DATABASE_URL!);
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Find user by email
     const users = await sql`
-      SELECT id, email, "firstName", "lastName", role, password, "isActive"
+      SELECT id, email, "firstName", "lastName", phone, role, password, "isActive"
       FROM "User"
       WHERE email = ${email.toLowerCase()}
     `;
@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      phone: user.phone || '',
       role: user.role,
       isActive: user.isActive
     };

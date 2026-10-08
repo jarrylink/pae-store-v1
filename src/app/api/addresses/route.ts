@@ -1,12 +1,14 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
-import { cookies } from 'next/headers';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const sql = neon(process.env.DATABASE_URL!, {
   fetchOptions: { timeout: 30000 }
 });
 
-// Helper to get current user from cookie
+// Helper to get current user from cookie or query
 async function getCurrentUser(request: NextRequest) {
   try {
     const userCookie = request.cookies.get('user_data');
@@ -19,7 +21,6 @@ async function getCurrentUser(request: NextRequest) {
       }
     }
     
-    // Also check for user_id cookie
     const userIdCookie = request.cookies.get('user_id');
     if (userIdCookie?.value) {
       const user = await sql`
@@ -39,17 +40,16 @@ async function getCurrentUser(request: NextRequest) {
   }
 }
 
-// GET /api/addresses - Get all addresses for the current user
+// GET /api/addresses - Get all addresses for user
 export async function GET(request: NextRequest) {
   try {
+    const queryUserId = request.nextUrl.searchParams.get('userId');
     const currentUser = await getCurrentUser(request);
+    const userId = queryUserId || currentUser?.id;
     
-    if (!currentUser) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = currentUser.id;
-    console.log(`Fetching addresses for user: ${userId}`);
     
     const addresses = await sql`
       SELECT * FROM "Address"
@@ -57,9 +57,11 @@ export async function GET(request: NextRequest) {
       ORDER BY "isDefault" DESC, "createdAt" DESC
     `;
     
-    console.log(`Found ${addresses.length} addresses for user ${userId}`);
-    
-    return NextResponse.json(addresses);
+    return NextResponse.json(addresses, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+      }
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error fetching addresses:', errorMessage);
@@ -67,17 +69,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/addresses - Create a new address for the current user
+// POST /api/addresses - Create a new address
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
+    const data = await request.json();
+    const userId = data.userId || currentUser?.id;
     
-    if (!currentUser) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    const userId = currentUser.id;
-    const data = await request.json();
     
     const { type, name, street, city, state, country, postalCode, phone, isDefault } = data;
     
@@ -85,8 +86,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Street, city, and state are required' }, { status: 400 });
     }
     
+    // Check if this is the user's first address
+    const existingCount = await sql`
+      SELECT count(*) as count FROM "Address" WHERE "userId" = ${userId}
+    `;
+    const count = parseInt(existingCount[0]?.count || '0', 10);
+    const shouldBeDefault = isDefault || count === 0;
+    
     // If this address is set as default, unset any existing default for this user
-    if (isDefault) {
+    if (shouldBeDefault) {
       await sql`
         UPDATE "Address"
         SET "isDefault" = false
@@ -97,12 +105,19 @@ export async function POST(request: NextRequest) {
     // Generate a unique ID for the address
     const addressId = `addr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     
+    // Safe values satisfying PostgreSQL NOT NULL constraints
+    const safeType = type || 'home';
+    const safeName = name && name.trim() ? name.trim() : (safeType === 'office' ? 'Office' : 'Home');
+    const safeCountry = country && country.trim() ? country.trim() : 'Nigeria';
+    const safePostalCode = postalCode && postalCode.trim() ? postalCode.trim() : '';
+    const safePhone = phone && phone.trim() ? phone.trim() : null;
+    
     const result = await sql`
       INSERT INTO "Address" (
         id, "userId", type, name, street, city, state, country, "postalCode", phone, "isDefault", "createdAt", "updatedAt"
       ) VALUES (
-        ${addressId}, ${userId}, ${type}, ${name || null}, ${street}, ${city}, ${state}, ${country || 'Nigeria'}, 
-        ${postalCode || null}, ${phone || null}, ${isDefault || false}, NOW(), NOW()
+        ${addressId}, ${userId}, ${safeType}, ${safeName}, ${street.trim()}, ${city.trim()}, ${state.trim()}, 
+        ${safeCountry}, ${safePostalCode}, ${safePhone}, ${shouldBeDefault}, NOW(), NOW()
       )
       RETURNING *
     `;

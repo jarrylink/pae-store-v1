@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 
 interface Order {
@@ -33,7 +33,13 @@ export default function AccountOrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch(`/api/orders?userId=${user?.id}`);
+      const response = await fetch(`/api/orders?userId=${user?.id}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
       setOrders(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -52,8 +58,6 @@ export default function AccountOrdersPage() {
     fetchOrders(); // Refresh orders when coming back
   };
 
-  if (loading) {
-
   // Check for success message from checkout
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -65,6 +69,7 @@ export default function AccountOrdersPage() {
     }
   }, []);
 
+  if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a2a8a]"></div>

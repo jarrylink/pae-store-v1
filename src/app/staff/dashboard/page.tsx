@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -94,7 +94,7 @@ export default function StaffDashboardPage() {
       });
       const data = await response.json();
       if (data.success) {
-        alert(`✅ Order status updated to ${newStatus}`);
+        alert(`âœ… Order status updated to ${newStatus}`);
         fetchAssignedOrders();
         setShowModal(false);
       } else {
@@ -109,7 +109,7 @@ export default function StaffDashboardPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-amber-100 text-amber-800',
+      pending: 'bg-sky-100 text-sky-800',
       confirmed: 'bg-blue-100 text-blue-800',
       processing: 'bg-indigo-100 text-indigo-800',
       shipped: 'bg-purple-100 text-purple-800',
@@ -248,8 +248,8 @@ export default function StaffDashboardPage() {
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Pending</p><p className="text-2xl font-bold text-amber-600">{statusCounts.pending}</p></div>
-              <Clock className="w-8 h-8 text-amber-500 opacity-50" />
+              <div><p className="text-sm text-gray-500">Pending</p><p className="text-2xl font-bold text-sky-600">{statusCounts.pending}</p></div>
+              <Clock className="w-8 h-8 text-sky-500 opacity-50" />
             </div>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
@@ -270,7 +270,7 @@ export default function StaffDashboardPage() {
         <div className="flex flex-wrap gap-2 mb-6">
           {Object.entries(statusCounts).map(([status, count]) => (
             <button key={status} onClick={() => setSelectedStatus(status)} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedStatus === status ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}>
-              {status.charAt(0).toUpperCase() + status.slice(1)} ({count})
+              {(status || "").charAt(0).toUpperCase() + (status || "").slice(1)} ({count})
             </button>
           ))}
         </div>
@@ -333,7 +333,7 @@ export default function StaffDashboardPage() {
                           className={`px-3 py-1 rounded-full text-xs font-medium border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(order.status)}`}
                         >
                           {updatingStatus === order.id ? (
-                            <option disabled>⟳ Updating...</option>
+                            <option disabled>âŸ³ Updating...</option>
                           ) : (
                             <>
                               <option value="pending">Pending</option>
@@ -406,7 +406,7 @@ export default function StaffDashboardPage() {
               </div>
 
               {/* Payment Information */}
-              {selectedOrder.paymentMethod && (<div><h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Payment Information</h3><div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg"><div><p className="text-xs text-gray-500">Payment Method</p><p className="text-sm text-gray-900 capitalize">{selectedOrder.paymentMethod}</p></div><div><p className="text-xs text-gray-500">Payment Status</p><p className={`text-sm font-medium capitalize ${selectedOrder.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>{selectedOrder.paymentStatus || 'Pending'}</p></div></div></div>)}
+              {selectedOrder.paymentMethod && (<div><h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Payment Information</h3><div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg"><div><p className="text-xs text-gray-500">Payment Method</p><p className="text-sm text-gray-900 capitalize">{selectedOrder.paymentMethod}</p></div><div><p className="text-xs text-gray-500">Payment Status</p><p className={`text-sm font-medium capitalize ${selectedOrder.paymentStatus === 'paid' ? 'text-green-600' : 'text-sky-600'}`}>{selectedOrder.paymentStatus || 'Pending'}</p></div></div></div>)}
 
               {/* Order Notes */}
               {selectedOrder.notes && (<div><h3 className="font-semibold text-gray-900 mb-2">Order Notes</h3><p className="text-sm text-gray-600 p-3 bg-gray-50 rounded-lg">{selectedOrder.notes}</p></div>)}
@@ -421,7 +421,7 @@ export default function StaffDashboardPage() {
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {updatingStatus === selectedOrder.id ? (
-                      <option disabled>⟳ Updating status...</option>
+                      <option disabled>âŸ³ Updating status...</option>
                     ) : (
                       <>
                         <option value="pending">Pending</option>

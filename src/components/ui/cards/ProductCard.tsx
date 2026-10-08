@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/types';
+import { formatCurrency } from '@/utils';
 
 interface ProductCardProps {
   product: Product;
@@ -41,21 +42,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
       onViewDetails(product.id);
       return;
     }
-    if (isGuest) {
-      if (onRequireLogin) {
-        onRequireLogin();
-      } else {
-        onViewDetails(product.id);
-      }
-      return;
-    }
+    // Allow adding to cart for all users (including guests)
     onAddToCart(product.id);
   };
 
   const handleWishlistClick = async () => {
     if (!onAddToWishlist) return;
     if (isWishlistLoading) return;
-    
+
     setIsWishlistLoading(true);
     try {
       await onAddToWishlist(product.id);
@@ -67,7 +61,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const getAddToCartButtonText = () => {
     if (!product.inStock) return 'Out of Stock';
     if (isAdminUser) return 'View Details';
-    if (isGuest) return 'Login to Buy';
     return 'Add to Cart';
   };
 
@@ -77,9 +70,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
     if (isAdminUser) {
       return 'bg-purple-600 hover:bg-purple-700 text-white hover:shadow-lg transform hover:-translate-y-0.5';
-    }
-    if (isGuest) {
-      return 'bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white hover:shadow-lg transform hover:-translate-y-0.5';
     }
     return 'bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white hover:shadow-lg transform hover:-translate-y-0.5';
   };
@@ -105,7 +95,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
       <div className="flex-1">
         <h4 className="text-lg font-semibold text-gray-900 dark:text-white">{product.title}</h4>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{product.brand} • {product.spec}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {product.brand} • {product.spec}
+        </p>
 
         <div className="mt-2 flex items-center">
           <span className={'text-xs px-2 py-1 rounded ' + getStockClasses()}>
@@ -127,7 +119,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       <div className="mt-4 flex items-center justify-between">
         <div>
           <div className="text-lg font-bold text-[#1a2a8a] dark:text-green-400">
-            ₦{product.price.toLocaleString()}
+            {formatCurrency(product.price)}
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400">VAT incl.</div>
         </div>
@@ -182,5 +174,3 @@ const ProductCard: React.FC<ProductCardProps> = ({
 };
 
 export default ProductCard;
-
-

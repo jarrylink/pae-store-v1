@@ -1,108 +1,39 @@
-﻿import { Product } from "@/types";
+import { Product } from '@/types';
+import { catalogRequest } from './catalogRequest';
 
-const API_URL = "/api/products";
-
-async function fetchWithRetry(url: string, options?: RequestInit, retries = 3): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, options);
-      return response;
-    } catch (error) {
-      console.log(`Attempt ${i + 1} failed, ${retries - i - 1} retries left`);
-      if (i === retries - 1) throw error;
-      // Wait before retrying (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
-    }
-  }
-  throw new Error("Max retries exceeded");
-}
+const API_URL = '/api/products';
 
 export const productsService = {
-  async getAllProducts(): Promise<Product[]> {
-    try {
-      const res = await fetchWithRetry(API_URL);
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to fetch products");
-      }
-      
-      const data = await res.json();
-      return data;
-    } catch (error) {
-      console.error("Error in getAllProducts:", error);
-      // Return empty array instead of throwing to prevent UI crashes
-      return [];
-    }
+  getAllProducts(includeInactive = false): Promise<Product[]> {
+    const url = includeInactive ? `${API_URL}?active=false` : API_URL;
+    return catalogRequest<Product[]>(url);
   },
-
+  toggleProductStatus(id: number, isActive: boolean): Promise<Product> {
+    return catalogRequest<Product>(`${API_URL}/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive }),
+    });
+  },
   async getProductById(id: number): Promise<Product | null> {
-    try {
-      const res = await fetchWithRetry(`${API_URL}/${id}`);
-      
-      if (!res.ok) {
-        if (res.status === 404) return null;
-        throw new Error("Failed to fetch product");
-      }
-      
-      return res.json();
-    } catch (error) {
-      console.error("Error in getProductById:", error);
-      return null;
-    }
+    const response = await fetch(API_URL + '/' + id, { cache: 'no-store' });
+    if (response.status === 404) return null;
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data) throw new Error(data?.error || 'Failed to fetch product');
+    return data;
   },
-
-  async createProduct(product: Partial<Product>): Promise<Product | null> {
-    try {
-      const res = await fetchWithRetry(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(product),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to create product");
-      }
-
-      return res.json();
-    } catch (error) {
-      console.error("Error in createProduct:", error);
-      return null;
-    }
+  createProduct(product: Partial<Product>): Promise<Product> {
+    return catalogRequest<Product>(API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(product),
+    });
   },
-
-  async updateProduct(id: number, product: Partial<Product>): Promise<Product | null> {
-    try {
-      const res = await fetchWithRetry(`${API_URL}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(product),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to update product");
-      }
-
-      return res.json();
-    } catch (error) {
-      console.error("Error in updateProduct:", error);
-      return null;
-    }
+  updateProduct(id: number, product: Partial<Product>): Promise<Product> {
+    return catalogRequest<Product>(API_URL + '/' + id, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(product),
+    });
   },
-
   async deleteProduct(id: number): Promise<boolean> {
-    try {
-      const res = await fetchWithRetry(`${API_URL}/${id}`, {
-        method: "DELETE"
-      });
-
-      return res.ok;
-    } catch (error) {
-      console.error("Error in deleteProduct:", error);
-      return false;
-    }
-  }
+    await catalogRequest(API_URL + '/' + id, { method: 'DELETE' });
+    return true;
+  },
 };
-

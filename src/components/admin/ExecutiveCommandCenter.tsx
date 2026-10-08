@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -363,7 +363,7 @@ const ExecutiveCommandCenter: React.FC = () => {
           </Tooltip>
           <p className="text-2xl font-bold text-purple-800">{formatPercent(metrics.customers.retentionRate)}</p>
         </div>
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 text-center">
+        <div className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-xl p-4 text-center">
           <Tooltip text="🎯 Customer Lifetime Value - projected revenue per customer">
             <div className="flex items-center justify-center gap-1 mb-2">
               <Award className="w-4 h-4 text-orange-600" />

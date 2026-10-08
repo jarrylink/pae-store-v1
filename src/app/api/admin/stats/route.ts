@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
 const sql = neon(process.env.DATABASE_URL!, {
@@ -7,7 +7,7 @@ const sql = neon(process.env.DATABASE_URL!, {
 
 export async function GET(request: NextRequest) {
     try {
-        console.log('📊 Fetching dashboard stats...');
+        console.log('?? Fetching dashboard stats...');
         
         // Get initial total inventory (from database - we'll calculate units sold)
         const products = await sql`
@@ -115,11 +115,11 @@ export async function GET(request: NextRequest) {
             recentOrders: parsedRecentOrders
         };
         
-        console.log('✅ Dashboard stats fetched successfully');
+        console.log('? Dashboard stats fetched successfully');
         return NextResponse.json(dashboardData);
         
     } catch (error) {
-        console.error('❌ Error fetching dashboard stats:', error);
+        console.error('? Error fetching dashboard stats:', error);
         return NextResponse.json({ 
             error: error instanceof Error ? error.message : 'Unknown error',
             products: { total: 0, totalInventory: 0, totalValue: 0, soldOut: 0, lowStock: 0, unitsSold: 0 },
@@ -130,3 +130,4 @@ export async function GET(request: NextRequest) {
         }, { status: 500 });
     }
 }
+

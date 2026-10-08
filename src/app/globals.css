@@ -1,4 +1,5 @@
-﻿@import "tailwindcss";
+﻿/* Scan only application sources, excluding project backups and build output. */
+@import "tailwindcss" source("..");
 
 @custom-variant dark (&:where(.dark, .dark *));
 

@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const sql = neon(process.env.DATABASE_URL!, {
+  fetchOptions: { timeout: 30000 }
+});
 
 async function getCurrentUser(request: NextRequest) {
   try {
     const userCookie = request.cookies.get('user_data');
     if (userCookie?.value) {
-      return JSON.parse(decodeURIComponent(userCookie.value));
+      try {
+        return JSON.parse(decodeURIComponent(userCookie.value));
+      } catch (e) {
+        console.error('Error parsing user cookie:', e);
+      }
+    }
+    const userIdCookie = request.cookies.get('user_id');
+    if (userIdCookie?.value) {
+      const user = await sql`
+        SELECT id, email, "firstName", "lastName", role
+        FROM "User"
+        WHERE id = ${userIdCookie.value}
+      `;
+      if (user.length > 0) return user[0];
     }
     return null;
   } catch (error) {
@@ -16,6 +34,7 @@ async function getCurrentUser(request: NextRequest) {
   }
 }
 
+// DELETE /api/addresses/[id]
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -24,32 +43,35 @@ export async function DELETE(
   const addressId = params.id;
   
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const queryUserId = searchParams.get('userId');
     const currentUser = await getCurrentUser(request);
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const userId = queryUserId || currentUser?.id;
     
     const addressCheck = await sql`
-      SELECT "userId", "isDefault" FROM "Address" WHERE id = ${addressId}
+      SELECT id, "userId", "isDefault" FROM "Address" WHERE id = ${addressId}
     `;
     
     if (addressCheck.length === 0) {
       return NextResponse.json({ error: 'Address not found' }, { status: 404 });
     }
     
-    if (addressCheck[0].userId !== currentUser.id) {
+    const targetAddress = addressCheck[0];
+    
+    // Check authorization if user specified
+    if (userId && targetAddress.userId !== userId && currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
     
-    const wasDefault = addressCheck[0].isDefault;
+    const wasDefault = targetAddress.isDefault;
+    const ownerUserId = targetAddress.userId;
     
     await sql`DELETE FROM "Address" WHERE id = ${addressId}`;
     
     if (wasDefault) {
       const remainingAddresses = await sql`
         SELECT id FROM "Address" 
-        WHERE "userId" = ${currentUser.id} 
+        WHERE "userId" = ${ownerUserId} 
         ORDER BY "createdAt" ASC 
         LIMIT 1
       `;
@@ -70,6 +92,7 @@ export async function DELETE(
   }
 }
 
+// PUT /api/addresses/[id]
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -78,47 +101,51 @@ export async function PUT(
   const addressId = params.id;
   
   try {
-    const currentUser = await getCurrentUser(request);
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
     const data = await request.json();
-    const { type, name, street, city, state, country, postalCode, phone, isDefault } = data;
+    const currentUser = await getCurrentUser(request);
+    const userId = data.userId || currentUser?.id;
     
     const addressCheck = await sql`
-      SELECT "userId" FROM "Address" WHERE id = ${addressId}
+      SELECT id, "userId" FROM "Address" WHERE id = ${addressId}
     `;
     
     if (addressCheck.length === 0) {
       return NextResponse.json({ error: 'Address not found' }, { status: 404 });
     }
     
-    if (addressCheck[0].userId !== currentUser.id) {
+    const existing = addressCheck[0];
+    if (userId && existing.userId !== userId && currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
+    
+    const { type, name, street, city, state, country, postalCode, phone, isDefault } = data;
     
     if (isDefault) {
       await sql`
         UPDATE "Address"
         SET "isDefault" = false
-        WHERE "userId" = ${currentUser.id} AND id != ${addressId}
+        WHERE "userId" = ${existing.userId} AND id != ${addressId}
       `;
     }
+    
+    const safeType = type || 'home';
+    const safeName = name && name.trim() ? name.trim() : (safeType === 'office' ? 'Office' : 'Home');
+    const safeCountry = country && country.trim() ? country.trim() : 'Nigeria';
+    const safePostalCode = postalCode && postalCode.trim() ? postalCode.trim() : '';
+    const safePhone = phone && phone.trim() ? phone.trim() : null;
     
     const updatedAddress = await sql`
       UPDATE "Address"
       SET 
-        type = ${type},
-        name = ${name || null},
-        street = ${street},
-        city = ${city},
-        state = ${state},
-        country = ${country || 'Nigeria'},
-        "postalCode" = ${postalCode || null},
-        phone = ${phone || null},
-        "isDefault" = ${isDefault || false},
+        type = ${safeType},
+        name = ${safeName},
+        street = ${street ? street.trim() : ''},
+        city = ${city ? city.trim() : ''},
+        state = ${state ? state.trim() : ''},
+        country = ${safeCountry},
+        "postalCode" = ${safePostalCode},
+        phone = ${safePhone},
+        "isDefault" = ${isDefault === true},
         "updatedAt" = NOW()
       WHERE id = ${addressId}
       RETURNING *
@@ -131,6 +158,7 @@ export async function PUT(
   }
 }
 
+// GET /api/addresses/[id]
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -139,15 +167,9 @@ export async function GET(
   const addressId = params.id;
   
   try {
-    const currentUser = await getCurrentUser(request);
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
     const address = await sql`
       SELECT * FROM "Address" 
-      WHERE id = ${addressId} AND "userId" = ${currentUser.id}
+      WHERE id = ${addressId}
     `;
     
     if (address.length === 0) {

@@ -1,4 +1,4 @@
-﻿// User types - Updated to match our database exactly
+// User types - Updated to match our database exactly
 export interface User {
     id: string;
     email: string;
@@ -7,7 +7,7 @@ export interface User {
     avatar?: string;
     emailVerified: boolean;
     phone?: string;
-    role: 'superadmin' | 'staff' | 'customer';
+    role: 'superadmin' | 'admin' | 'staff' | 'customer';
     company?: string;
     location?: string;
     bio?: string;
@@ -56,18 +56,77 @@ export interface Address {
 }
 
 // Order types
-export interface OrderItem {
-  id: number;
-  orderId: number;
+export interface ProductLine {
+  id?: number;
+  orderId?: number;
   productId: number;
-  name: string;
+  name?: string;
   title: string;
   brand?: string;
   spec?: string;
   capacity?: string;
   price: number;
   quantity: number;
-  image: string;
+  image?: string;
+  type: 'product';
+  lineItemId?: string;
+}
+
+export interface AccessoryLine {
+  id?: number;
+  orderId?: number;
+  accessoryId: number;
+  name: string;
+  title?: string;
+  price?: number;
+  unit_price: number;
+  quantity: number;
+  total_price: number;
+  unit?: string;
+  image?: string;
+  type?: 'accessory';
+  sku?: string;
+  category?: string;
+}
+
+export interface ServiceLine {
+  id?: number;
+  orderId?: number;
+  serviceId: number;
+  productId?: number;
+  name: string;
+  title?: string;
+  price: number;
+  quantity: number;
+  type: 'service';
+  image?: string;
+  description?: string;
+  category?: string;
+  lineItemId?: string;
+}
+
+export type OrderLineItem = ProductLine | AccessoryLine | ServiceLine;
+
+export interface OrderItem {
+  id?: number;
+  orderId?: number;
+  productId?: number;
+  serviceId?: number;
+  accessoryId?: number;
+  name?: string;
+  title?: string;
+  brand?: string;
+  spec?: string;
+  capacity?: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  type?: 'product' | 'service' | 'accessory';
+  lineItemId?: string;
+  unit_price?: number;
+  total_price?: number;
+  unit?: string;
+  category?: string;
 }
 
 export interface Order {
@@ -75,6 +134,12 @@ export interface Order {
   userId: string;
   orderNumber: string;
   items: OrderItem[];
+  products?: ProductLine[];
+  accessories?: AccessoryLine[];
+  services?: ServiceLine[];
+  productTotal?: number;
+  accessoryTotal?: number;
+  serviceTotal?: number;
   subtotal: number;
   shipping: number;
   tax: number;
@@ -94,9 +159,9 @@ export interface Order {
   customerPhone: string;
   customerEmail: string;
   // Service tracking
-  serviceId?: number;
-  serviceName?: string;
-  servicePrice?: number;
+  serviceId?: number | null;
+  serviceName?: string | null;
+  servicePrice?: number | string | null;
   hasService?: boolean;
 }
 
@@ -141,6 +206,7 @@ export interface Service {
   name: string;
   description?: string;
   price: number;
+  costPrice?: number;
   category?: string;
   duration?: string;
   isActive: boolean;
@@ -150,3 +216,20 @@ export interface Service {
   updatedAt: string;
 }
 
+
+export interface Accessory {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  costPrice?: number;
+  category?: string;
+  duration?: string;
+  isActive: boolean;
+  image?: string;
+  features?: string[];
+  createdAt: string;
+  sku?: string;
+  unit?: string;
+  stock: number;
+}

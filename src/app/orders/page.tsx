@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -23,7 +23,13 @@ export default function OrdersPage() {
         return;
       }
       try {
-        const response = await fetch(`/api/orders?userId=${user.id}`);
+        const response = await fetch(`/api/orders?userId=${user.id}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           setOrders(data);
@@ -65,7 +71,7 @@ export default function OrdersPage() {
   };
 
   const getStatusText = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    return (status || "").charAt(0).toUpperCase() + (status || "").slice(1);
   };
 
   const getStatusProgress = (status: string) => {
@@ -147,7 +153,7 @@ export default function OrdersPage() {
                   Total Spent
                 </p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  ₦{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}
+                  â‚¦{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -170,9 +176,18 @@ export default function OrdersPage() {
                         {getStatusText(order.status)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      Placed on {new Date(order.createdAt).toLocaleString()} • {order.items.length} item{order.items.length > 1 ? 's' : ''}
-                    </p>
+                    {(() => {
+                      const allOrderItems = [
+                        ...(Array.isArray((order as any).products) ? (order as any).products : (order.items || [])),
+                        ...(Array.isArray((order as any).services) ? (order as any).services : [])
+                      ];
+                      const totalCount = allOrderItems.length + (order.accessories?.length || 0);
+                      return (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          Placed on {new Date(order.createdAt).toLocaleString()} • {totalCount} item{totalCount !== 1 ? 's' : ''}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="mt-2 md:mt-0 text-right">
                     <p className="text-2xl font-bold text-[#1a2a8a] dark:text-green-400">
@@ -216,27 +231,32 @@ export default function OrdersPage() {
                     Order Items
                   </h4>
                   <div className="space-y-3">
-                    {order.items.map((item: any) => (
-                      <div key={item.id} className="flex items-center space-x-4">
+                    {[
+                      ...(Array.isArray((order as any).products) ? (order as any).products : (order.items || [])),
+                      ...(Array.isArray((order as any).services) ? (order as any).services : [])
+                    ].map((item: any, idx: number) => (
+                      <div key={item.id || item.productId || item.serviceId || idx} className="flex items-center space-x-4">
                         <img
-                          src={item.image}
-                          alt={item.title}
+                          src={item.image || '/placeholder-image.png'}
+                          alt={item.title || item.name}
                           className="w-16 h-16 object-cover rounded-lg"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-image.png'; }}
                         />
                         <div className="flex-1">
                           <p className="font-medium text-gray-900 dark:text-white">
-                            {item.title}
+                            {item.title || item.name}
+                            {item.type === 'service' ? ' (Service)' : ''}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {item.brand} • Qty: {item.quantity}
+                            {item.brand ? `${item.brand} • ` : ''}Qty: {item.quantity}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="font-medium text-gray-900 dark:text-white">
-                            ₦{(item.price * item.quantity).toLocaleString()}
+                            ₦{(Number(item.price) * Number(item.quantity)).toLocaleString()}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            ₦{item.price.toLocaleString()} each
+                            ₦{Number(item.price).toLocaleString()} each
                           </p>
                         </div>
                       </div>
@@ -279,7 +299,7 @@ export default function OrdersPage() {
           </div>
         ) : (
           <div className="text-center py-16 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="text-6xl mb-4">📦</div>
+            <div className="text-6xl mb-4">ðŸ“¦</div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               No orders found
             </h3>
