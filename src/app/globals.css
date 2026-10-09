@@ -1,4 +1,4 @@
-﻿/* Scan only application sources, excluding project backups and build output. */
+/* Scan only application sources, excluding project backups and build output. */
 @import "tailwindcss" source("..");
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -43,10 +43,22 @@
   45% { transform: scale(1.12); }
 }
 
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
 .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
 .animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
 .animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
 .animate-heartbeat { animation: heartbeat 1.5s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 12s linear infinite; }
+.animate-bounce-subtle { animation: bounce-subtle 2.5s ease-in-out infinite; }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }

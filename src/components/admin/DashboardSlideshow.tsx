@@ -61,7 +61,7 @@ const DashboardSlideshow: React.FC<DashboardSlideshowProps> = ({ data }) => {
   const slides = [
     {
       id: 1,
-      image: 'https://res.cloudinary.com/djkudkxmx/image/upload/v1784032037/Gemini_Generated_Image_lptdrnlptdrnlptd_qr0noj.png',
+      image: 'https://res.cloudinary.com/djkudkxmx/image/upload/v1791505263/Premium_Solar_Panel_Showcase_Banner_jk34co.png',
       title: 'Guaranteed Quality. Trusted Clean Energy.',
       subtitle: 'Our Managing Director, Muhammad Sade, stands behind every system we deliver. Experience reliable power with premium solutions built to last.',
       cta: 'Explore Quality Products',
@@ -72,7 +72,7 @@ const DashboardSlideshow: React.FC<DashboardSlideshowProps> = ({ data }) => {
     },
     {
       id: 2,
-      image: 'https://res.cloudinary.com/djkudkxmx/image/upload/v1784032038/Gemini_Generated_Image_amb6gtamb6gtamb6_yr3nse.png',
+      image: 'https://res.cloudinary.com/djkudkxmx/image/upload/v1791505247/Solar_inverter_showcase_with_Power_Afric_branding_qswjdu.png',
       title: 'Smart Technology. Greener Tomorrows.',
       subtitle: 'Engineered for maximum efficiency. Tech Strategist Muhammad Khalilullah Uthman ensures fully optimized, intelligent green energy setups tailored for your needs.',
       cta: 'See Our Tech',
@@ -83,7 +83,7 @@ const DashboardSlideshow: React.FC<DashboardSlideshowProps> = ({ data }) => {
     },
     {
       id: 3,
-      image: 'https://res.cloudinary.com/djkudkxmx/image/upload/v1784032033/Gemini_Generated_Image_717drz717drz717d_aro37j.png',
+      image: 'https://res.cloudinary.com/djkudkxmx/image/upload/v1791505249/Power_Afric_energy_storage_showcase_ahpiwc.png',
       title: 'Your Gateway to Premium Solar.',
       subtitle: 'Switching to solar has never been easier. E-Commerce Expert Jafar Muhammad bridges the gap, giving you instant digital access to the best green products on the market.',
       cta: 'Shop the Store Now',
