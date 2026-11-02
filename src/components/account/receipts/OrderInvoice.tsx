@@ -588,7 +588,7 @@ const OrderInvoice: React.FC<OrderInvoiceProps> = ({ order, onClose }) => {
                 <div style="font-weight: 700; margin-bottom: 0.3rem; color: #1a2a8a; font-size: 10.5px;">Payment Bank Details:</div>
                 <div><strong>Bank:</strong> GTBank Plc.</div>
                 <div><strong>Acc. Name:</strong> Power Afric Energy Serv. LTD</div>
-                <div><strong>Acc. Number:</strong> 0500647890</div>
+                <div><strong>Acc. Number:</strong> 0500647850</div>
               </div>
 
               ${qrCodeUrl ? `
