@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { User } from '@/types/auth';
@@ -18,7 +18,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onSubmit }
     avatar: user.avatar || '',
     emailVerified: user.emailVerified || false,
     password: '',
-    role: user.role as 'superadmin' | 'staff' | 'customer',
+    role: user.role as 'superadmin' | 'staff' | 'sales_agent' | 'customer',
     isActive: user.isActive,
   });
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onSubmit }
       avatar: user.avatar || '',
       emailVerified: user.emailVerified || false,
       password: '',
-      role: user.role as 'superadmin' | 'staff' | 'customer',
+      role: user.role as 'superadmin' | 'staff' | 'sales_agent' | 'customer',
       isActive: user.isActive,
     });
   }, [user]);
@@ -181,6 +181,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onSubmit }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent dark:bg-gray-700 dark:text-white"
               >
                 <option value="customer">Customer</option>
+                <option value="sales_agent">Sales Agent</option>
                 <option value="staff">Staff</option>
                 <option value="superadmin">Super Admin</option>
               </select>

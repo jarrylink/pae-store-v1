@@ -7,7 +7,7 @@ export interface User {
     avatar?: string;
     emailVerified: boolean;
     phone?: string;
-    role: 'superadmin' | 'admin' | 'staff' | 'customer';
+    role: 'superadmin' | 'admin' | 'staff' | 'sales_agent' | 'customer';
     company?: string;
     location?: string;
     bio?: string;

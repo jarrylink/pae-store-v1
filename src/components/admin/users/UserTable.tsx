@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { User } from '@/types/auth';
@@ -35,6 +35,8 @@ const UserTable: React.FC<UserTableProps> = ({
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
       case 'staff':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'sales_agent':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-medium';
       case 'customer':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       default:
@@ -110,7 +112,8 @@ const UserTable: React.FC<UserTableProps> = ({
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 text-xs rounded-full ${getRoleColor(user.role)}`}>
                   {user.role === 'superadmin' ? 'Super Admin' : 
-                   user.role === 'staff' ? 'Staff' : 'Customer'}
+                   user.role === 'staff' ? 'Staff' : 
+                   user.role === 'sales_agent' ? 'Sales Agent' : 'Customer'}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">

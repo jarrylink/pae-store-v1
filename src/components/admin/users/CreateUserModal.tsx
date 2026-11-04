@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 
@@ -16,7 +16,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit }) 
     password: '',
     avatar: '',
     emailVerified: false,
-    role: 'customer' as 'superadmin' | 'staff' | 'customer',
+    role: 'customer' as 'superadmin' | 'staff' | 'sales_agent' | 'customer',
     isActive: true,
   });
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,12 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit }) 
           'products:read', 'products:update',
           'orders:read', 'orders:update',
           'users:read', 'analytics:read'
+        ];
+      case 'sales_agent':
+        return [
+          'invoices:create', 'invoices:read', 'invoices:update',
+          'products:read', 'accessories:read', 'services:read',
+          'profile:read', 'profile:update'
         ];
       default: // customer
         return [
@@ -197,6 +203,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit }) 
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#1a2a8a] focus:border-transparent dark:bg-gray-700 dark:text-white"
               >
                 <option value="customer">Customer</option>
+                <option value="sales_agent">Sales Agent</option>
                 <option value="staff">Staff</option>
                 <option value="superadmin">Super Admin</option>
               </select>

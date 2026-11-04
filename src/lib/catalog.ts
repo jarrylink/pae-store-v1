@@ -138,7 +138,7 @@ export async function verifyAdminRequest(request?: Request): Promise<boolean> {
       const userRows = await queryWithParams('SELECT id, role FROM "User" WHERE id = $1', [userId]);
       if (userRows.length > 0) {
         const dbRole = userRows[0].role;
-        if (dbRole === 'superadmin' || dbRole === 'staff' || dbRole === 'admin') {
+        if (dbRole === 'superadmin' || dbRole === 'staff' || dbRole === 'admin' || dbRole === 'sales_agent') {
           return true;
         }
       }
@@ -147,7 +147,7 @@ export async function verifyAdminRequest(request?: Request): Promise<boolean> {
     }
   }
 
-  if (role === 'superadmin' || role === 'staff' || role === 'admin') {
+  if (role === 'superadmin' || role === 'staff' || role === 'admin' || role === 'sales_agent') {
     return true;
   }
 

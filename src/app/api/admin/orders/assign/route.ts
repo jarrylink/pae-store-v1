@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon((process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_pT4KLJb5CYOv@ep-round-hill-a1rhjo2j-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'));
+import { getDb, executeWithRetry } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
     try {
         const { orderId, staffId } = await request.json();
+        const sql = getDb();
         
-        console.log(`?? Assigning order ${orderId} to staff ${staffId}`);
+        console.log(`Assigning order ${orderId} to staff ${staffId}`);
         
         if (!orderId || !staffId) {
             return NextResponse.json({ 
@@ -16,50 +15,53 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
         
-        // Get staff details
-        const staff = await sql`
-            SELECT id, "firstName", "lastName", email
-            FROM "User"
-            WHERE id = ${staffId} AND role = 'staff'
-        `;
-        
-        if (staff.length === 0) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Staff member not found' 
-            }, { status: 404 });
+        const result = await executeWithRetry(async () => {
+            // Get staff details
+            const staff = await sql`
+                SELECT id, "firstName", "lastName", email
+                FROM "User"
+                WHERE id = ${staffId} AND role = 'staff'
+            `;
+            
+            if (staff.length === 0) {
+                return { error: 'Staff member not found', status: 404 };
+            }
+            
+            // Check if order exists
+            const order = await sql`
+                SELECT id FROM "Order" WHERE id = ${parseInt(orderId)}
+            `;
+            
+            if (order.length === 0) {
+                return { error: 'Order not found', status: 404 };
+            }
+            
+            // Update order with assigned staff
+            const updated = await sql`
+                UPDATE "Order"
+                SET 
+                    "assignedStaffId" = ${staff[0].id},
+                    "assignedStaffName" = ${staff[0].firstName + ' ' + staff[0].lastName},
+                    "assignedStaffEmail" = ${staff[0].email},
+                    "updatedAt" = NOW()
+                WHERE id = ${parseInt(orderId)}
+                RETURNING id, "assignedStaffId", "assignedStaffName", "assignedStaffEmail"
+            `;
+
+            return {
+                staffMember: staff[0],
+                order: updated[0]
+            };
+        });
+
+        if ('error' in result && result.error) {
+            return NextResponse.json({ success: false, error: result.error }, { status: result.status || 400 });
         }
-        
-        // Check if order exists
-        const order = await sql`
-            SELECT id FROM "Order" WHERE id = ${parseInt(orderId)}
-        `;
-        
-        if (order.length === 0) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Order not found' 
-            }, { status: 404 });
-        }
-        
-        // Update order with assigned staff - now TEXT matches TEXT
-        const result = await sql`
-            UPDATE "Order"
-            SET 
-                "assignedStaffId" = ${staff[0].id},
-                "assignedStaffName" = ${staff[0].firstName + ' ' + staff[0].lastName},
-                "assignedStaffEmail" = ${staff[0].email},
-                "updatedAt" = NOW()
-            WHERE id = ${parseInt(orderId)}
-            RETURNING id, "assignedStaffId", "assignedStaffName", "assignedStaffEmail"
-        `;
-        
-        console.log(`? Order ${orderId} assigned to ${staff[0].firstName} ${staff[0].lastName}`);
         
         return NextResponse.json({ 
             success: true, 
-            message: `Order assigned to ${staff[0].firstName} ${staff[0].lastName}`,
-            order: result[0]
+            message: `Order assigned to ${result.staffMember.firstName} ${result.staffMember.lastName}`,
+            order: result.order
         });
     } catch (error) {
         console.error('Error assigning order:', error);

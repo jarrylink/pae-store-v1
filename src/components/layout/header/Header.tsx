@@ -97,7 +97,8 @@ const Header: React.FC = () => {
 
   const isSuperAdmin = user?.role === 'superadmin';
   const isStaff = user?.role === 'staff';
-  const isAdminUser = isSuperAdmin || isStaff;
+  const isSalesAgent = user?.role === 'sales_agent';
+  const isAdminUser = isSuperAdmin || isStaff || isSalesAgent;
 
   const navItems = [
     { name: 'Home', href: '/', icon: <Home className="w-4 h-4" /> },
@@ -189,11 +190,15 @@ const Header: React.FC = () => {
               })}
               {isAdminUser && (
                 <Link
-                  href={isSuperAdmin ? "/admin/dashboard" : "/staff/dashboard"}
-                  className="ml-2 px-3 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white flex items-center gap-1.5"
+                  href={isSuperAdmin ? "/admin/dashboard" : isSalesAgent ? "/sales/dashboard" : "/staff/dashboard"}
+                  className={`ml-2 px-3 py-2 text-sm font-bold rounded-lg text-white flex items-center gap-1.5 ${
+                    isSalesAgent
+                      ? 'bg-gradient-to-r from-amber-600 to-emerald-600'
+                      : 'bg-gradient-to-r from-purple-600 to-blue-600'
+                  }`}
                 >
                   <Shield className="w-4 h-4" />
-                  {isSuperAdmin ? 'ADMIN' : 'STAFF'}
+                  {isSuperAdmin ? 'ADMIN' : isSalesAgent ? 'SALES' : 'STAFF'}
                 </Link>
               )}
             </nav>
@@ -260,6 +265,16 @@ const Header: React.FC = () => {
                     <div className="p-1">
                       {isAuthenticated ? (
                         <>
+                          {isSalesAgent && (
+                            <Link
+                              href="/sales/dashboard"
+                              className="flex items-center space-x-2 px-3 py-2 text-sm text-amber-600 dark:text-amber-400 font-semibold hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded"
+                              onClick={() => setIsAccountDropdownOpen(false)}
+                            >
+                              <Shield className="w-4 h-4" />
+                              <span>Sales Agent Portal</span>
+                            </Link>
+                          )}
                           <Link
                             href="/account"
                             className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
@@ -377,11 +392,15 @@ const Header: React.FC = () => {
 
                 {isAdminUser && (
                   <Link
-                    href={isSuperAdmin ? "/admin/dashboard" : "/staff/dashboard"}
+                    href={isSuperAdmin ? "/admin/dashboard" : isSalesAgent ? "/sales/dashboard" : "/staff/dashboard"}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block mt-2 px-3 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white text-center"
+                    className={`block mt-2 px-3 py-2 text-sm font-bold rounded-lg text-white text-center ${
+                      isSalesAgent
+                        ? 'bg-gradient-to-r from-amber-600 to-emerald-600'
+                        : 'bg-gradient-to-r from-purple-600 to-blue-600'
+                    }`}
                   >
-                    {isSuperAdmin ? 'ADMIN DASHBOARD' : 'STAFF DASHBOARD'}
+                    {isSuperAdmin ? 'ADMIN DASHBOARD' : isSalesAgent ? 'SALES AGENT DASHBOARD' : 'STAFF DASHBOARD'}
                   </Link>
                 )}
 

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '@/utils';
@@ -56,6 +56,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({ user, onClose, isSuperAdmin =
         return 'Super Admin';
       case 'staff':
         return 'Staff';
+      case 'sales_agent':
+        return 'Sales Agent';
       case 'customer':
         return 'Customer';
       default:

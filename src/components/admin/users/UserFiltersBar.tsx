@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { UserFilters } from '@/lib/services/userService';
@@ -20,7 +20,7 @@ const UserFiltersBar: React.FC<UserFiltersBarProps> = ({ onFilterChange }) => {
     }
     
     if (role !== 'all') {
-      filters.role = role as 'superadmin' | 'staff' | 'customer';
+      filters.role = role as 'superadmin' | 'staff' | 'sales_agent' | 'customer';
     }
     
     if (status !== 'all') {
@@ -69,6 +69,7 @@ const UserFiltersBar: React.FC<UserFiltersBarProps> = ({ onFilterChange }) => {
             <option value="all">All Roles</option>
             <option value="superadmin">Super Admin</option>
             <option value="staff">Staff</option>
+            <option value="sales_agent">Sales Agent</option>
             <option value="customer">Customer</option>
           </select>
         </div>

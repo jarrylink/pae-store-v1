@@ -5,7 +5,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ParticleBackground from '@/components/features/particles/ParticleBackground';
-import {  Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench, Tag, Box } from 'lucide-react';
+import {  Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench, Tag, Box, FileText } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -36,6 +36,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   // Navigation items for admin panel
   const navItems = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Invoices', href: '/admin/invoices', icon: FileText },
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Services', href: '/admin/services', icon: Wrench },
