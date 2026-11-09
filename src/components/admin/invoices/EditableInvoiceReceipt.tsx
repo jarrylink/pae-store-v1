@@ -65,15 +65,15 @@ export default function EditableInvoiceReceipt() {
   const totals = calculateTotals();
 
   // Breakdown by category
-  const productsTotal = items
+  const productsTotal = (items || [])
     .filter((i) => i.type === 'product')
-    .reduce((sum, i) => sum + i.totalPrice, 0);
-  const accessoriesTotal = items
+    .reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+  const accessoriesTotal = (items || [])
     .filter((i) => i.type === 'accessory')
-    .reduce((sum, i) => sum + i.totalPrice, 0);
-  const servicesTotal = items
+    .reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+  const servicesTotal = (items || [])
     .filter((i) => i.type === 'service')
-    .reduce((sum, i) => sum + i.totalPrice, 0);
+    .reduce((sum, i) => sum + (i.totalPrice || 0), 0);
 
   const filteredCatalog = searchCatalog(catalogQuery);
 

@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import { streamText, tool, convertToModelMessages, isStepCount } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
-import { searchCatalog, searchCatalogAsync } from '@/lib/ai/catalogSearch';
+import { searchCatalog } from '@/lib/ai/catalogSearch';
+import { searchCatalogAsync } from '@/lib/ai/catalogDbSearch';
 
 // Initialize the Google Generative AI provider with environment key
 const google = createGoogleGenerativeAI({

@@ -187,7 +187,7 @@ export const useInvoiceDraftStore = create<InvoiceDraftState>((set, get) => ({
 
   calculateTotals: () => {
     const { items, discount } = get();
-    const subtotal = items.reduce((acc, item) => acc + item.totalPrice, 0);
+    const subtotal = (items || []).reduce((acc, item) => acc + (item.totalPrice || 0), 0);
     const validDiscount = Math.min(subtotal, Math.max(0, discount || 0));
     // Zero-VAT rule across all invoices:
     const tax = 0;

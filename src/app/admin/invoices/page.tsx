@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useInvoiceDraftStore } from '@/lib/stores/invoiceDraftStore';
-import InvoiceChatAssistant from '@/components/admin/invoices/InvoiceChatAssistant';
-import EditableInvoiceReceipt from '@/components/admin/invoices/EditableInvoiceReceipt';
 import InvoiceManager from '@/components/admin/invoices/InvoiceManager';
 import {
   Sparkles,
@@ -19,12 +18,48 @@ import {
   Zap,
 } from 'lucide-react';
 
+// Dynamically import client-only AI Agent & Canvas with SSR disabled to prevent hydration mismatches
+const InvoiceChatAssistant = dynamic(
+  () => import('@/components/admin/invoices/InvoiceChatAssistant'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-8 border border-gray-200 dark:border-gray-700 h-[650px] lg:h-full flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-gray-500 dark:text-gray-400">Loading AI Sales Agent...</p>
+        </div>
+      </div>
+    ),
+  }
+);
+
+const EditableInvoiceReceipt = dynamic(
+  () => import('@/components/admin/invoices/EditableInvoiceReceipt'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-8 border border-gray-200 dark:border-gray-700 h-[750px] lg:h-full flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-gray-500 dark:text-gray-400">Loading Commercial Invoice Canvas...</p>
+        </div>
+      </div>
+    ),
+  }
+);
+
 export default function AdminInvoicesPage() {
+  const [mounted, setMounted] = useState(false);
   const { user } = useAuthStore();
   const { invoiceNumber } = useInvoiceDraftStore();
   const [activeTab, setActiveTab] = useState<'ai-sales-agent' | 'manual-invoice'>('ai-sales-agent');
 
-  if (!user) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !user) {
     return (
       <div className="py-24 text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto mb-3" />
