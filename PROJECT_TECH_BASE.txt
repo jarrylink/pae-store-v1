@@ -1,0 +1,604 @@
+================================================================================
+POWER AFRIC STORE - TECHNICAL SYSTEM ARCHITECTURE & AI AUDIT REFERENCE GUIDE
+================================================================================
+Document Version: 1.0.0
+Classification: Core Technical Base / Engineering Knowledge Base
+Primary Target: Autonomous AI Coding Agents & Full-Stack Engineers
+File Type: Plain Text Technical Specification
+Last Updated: November 2026
+================================================================================
+
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1.  PROJECT OVERVIEW & CORE MISSION
+2.  COMPLETE TECH STACK & DEPENDENCY MATRIX
+3.  PROJECT DIRECTORY STRUCTURE & FILE MANIFEST
+4.  DATABASE ARCHITECTURE & PERSISTENCE LAYER (NEON POSTGRESQL + PRISMA)
+5.  CORE DOMAIN ENTITIES & DATA MODELS
+6.  STATE MANAGEMENT ARCHITECTURE (ZUSTAND 5)
+7.  AUTHENTICATION, AUTHORIZATION & RBAC SYSTEM
+8.  ROUTING TAXONOMY & SITEMAP (APP ROUTER)
+9.  THE 3-PHASE E-COMMERCE ENGINE (PRODUCTS, ACCESSORIES, SERVICES)
+10. INVOICE MANAGEMENT & PRINTABLE TEMPLATE SYSTEM (ZERO-VAT MODEL)
+11. USER FEEDBACK & NOTIFICATION SUBSYSTEM (REACT-HOT-TOAST + STORE BRIDGE)
+12. UI/UX, THEMING, AND DESIGN SYSTEM (TAILWIND CSS 4 + TSPARTICLES)
+13. API SPECIFICATION & BACKEND ENDPOINTS
+14. CRITICAL BUSINESS LOGIC RULES & TAX CALCULATIONS
+15. COMMON PITFALLS, SANDBOX CONSTRAINTS & DEVELOPMENT GUIDELINES
+16. ENVIRONMENT VARIABLES & DEPLOYMENT RUNBOOK
+
+================================================================================
+1. PROJECT OVERVIEW & CORE MISSION
+================================================================================
+Power Afric Store (Power Afric Energy Services LTD) is Nigeria's enterprise
+solar and renewable energy e-commerce platform and operational portal.
+
+The application handles three distinct user-facing spheres:
+  A. Public Customer Marketplace: Browsing solar panels, inverters, batteries,
+     accessories, and installation services with cart, wishlist, checkout, and
+     order tracking.
+  B. Sales Agent Portal (/sales): Dedicated CRM workspace for internal sales
+     representatives to manage custom quotations, visual catalogue picker,
+     customer invoices, product lookup, and agent profile settings.
+  C. Super Admin & Staff Portal (/admin): Enterprise control center managing
+     users, pipeline orders, assignment to staff, service management, inventory
+     catalogue, executive analytics, and invoice auditing.
+
+Key Business Attributes:
+  - Base Currency: Nigerian Naira (NGN / ₦).
+  - Tax Policy: All storefront product prices are strictly VAT-inclusive.
+    Invoices generated from the Invoices Tab feature NO additional VAT line item
+    (VAT rate = 0%, VAT amount = 0, Grand Total = Subtotal - Discount).
+  - Default Corporate Bank:
+      Bank Name: GTBank Plc.
+      Account Name: Power Afric Energy Serv. LTD
+      Account Number: 0500647850
+
+================================================================================
+2. COMPLETE TECH STACK & DEPENDENCY MATRIX
+================================================================================
+Runtime & Framework:
+  - Framework: Next.js 16.1.7 (App Router with React Server Components + Client Components)
+  - Engine: Node.js 22+ (tested up to v24.11.0)
+  - UI Library: React 19.2.4 & React DOM 19.2.4
+  - Language: TypeScript 5.9.3 (strict mode configured)
+  - Bundler: Next.js Webpack / Turbopack support
+
+Styling & Visual Design:
+  - CSS Engine: Tailwind CSS 4.1.17 (@tailwindcss/postcss, @tailwindcss/cli)
+  - Icons: lucide-react 0.562.0, @heroicons/react 2.2.0
+  - Visual Particle Engine: @tsparticles/engine 3.9.1, @tsparticles/react 3.0.0, @tsparticles/slim 3.9.1
+  - Class Name Utilities: clsx 2.1.1, tailwind-merge 3.5.0
+
+State Management & Reactivity:
+  - Client Store: Zustand 5.0.0 with localStorage persist middleware
+  - Interactive Notifications: react-hot-toast 2.6.0 (globally mounted via Toaster in ClientLayout)
+
+Database & ORM:
+  - Production Database: PostgreSQL 18.0 hosted on Neon (Serverless)
+  - Neon Driver: @neondatabase/serverless 1.0.2 (HTTP-based pooled connection with retry layer)
+  - ORM / Schema Modeling: Prisma Client 7.4.2 (@prisma/client)
+
+Document & Output Generation:
+  - Dynamic QR Codes: qrcode 1.5.4
+  - Printable Invoices: Clean zero-dependency iframe/popup HTML5 generator
+  - PDF Generation Support: jspdf 4.2.1, jspdf-autotable 5.0.8, html2canvas 1.4.1
+
+Email & Analytics:
+  - Email Transport: nodemailer 9.0.3 (SMTP Gmail integration)
+  - Analytics & Reporting: Google Analytics 4 (Measurement Protocol + GA API v173.0.0), Chart.js 4.5.1, react-chartjs-2 5.3.1, Recharts 3.8.1
+
+================================================================================
+3. PROJECT DIRECTORY STRUCTURE & FILE MANIFEST
+================================================================================
+power-afric-store/
+├── .env                              # Prisma and local database connection strings
+├── .env.local                        # Google Analytics, SMTP, and client credentials
+├── package.json                      # Dependency manifest and execution scripts
+├── tsconfig.json                     # TypeScript compiler options
+├── postcss.config.mjs                # PostCSS config with @tailwindcss/postcss
+├── prisma/
+│   ├── schema.prisma                 # Declarative relational schema
+│   └── seed.js                       # Database seeding script
+├── scripts/                          # DB migration, table setup, and diagnostic scripts
+│   ├── create-invoice-table.js       # SQL table initialization for "Invoice"
+│   ├── setup-db.js                   # Schema migration script
+│   └── test-api-orders.js            # Diagnostics for order pipeline
+├── public/                           # Static assets, branding, icons, banners
+└── src/
+    ├── app/                          # Next.js App Router root
+    │   ├── layout.tsx                # Master HTML layout, fonts, Analytics, Notifications
+    │   ├── page.tsx                  # Home landing page: Hero, Categories, Products
+    │   ├── globals.css               # Global Tailwind CSS 4 directives
+    │   ├── accessories/              # Standalone installation accessories catalog
+    │   ├── account/                  # Customer profile, addresses, security
+    │   ├── admin/                    # Enterprise Super Admin & Staff Portal
+    │   │   ├── layout.tsx            # Admin sidebar navigation, RBAC verification
+    │   │   ├── dashboard/            # Metrics overview, KPI cards, charts
+    │   │   ├── orders/               # Unified Order/Invoice pipeline management
+    │   │   ├── invoices/             # Full custom invoice creation & invoice table
+    │   │   ├── products/             # Inventory CRUD and stock toggle
+    │   │   ├── users/                # User management, role assignment, activation
+    │   │   ├── services/             # Installation service management
+    │   │   └── analytics/            # Financial & executive intelligence reports
+    │   ├── api/                      # Serverless Route Handlers (REST endpoints)
+    │   │   ├── admin/orders/         # Assign staff, patch order status
+    │   │   ├── auth/                 # Login, register, logout, profile
+    │   │   ├── invoices/             # Invoice table CRUD endpoints (GET, POST, PUT, DELETE)
+    │   │   ├── orders/               # Customer & staff orders pipeline
+    │   │   ├── products/             # Product catalog REST endpoints
+    │   │   ├── services/             # Service catalog endpoints
+    │   │   ├── accessories/          # Accessory catalog endpoints
+    │   │   └── users/                # User accounts & RBAC management
+    │   ├── cart/                     # Full 3-phase interactive cart page
+    │   ├── checkout/                 # Order completion with address selection
+    │   ├── orders/                   # Customer order history and receipts
+    │   ├── products/                 # Public product listing with search/filter
+    │   │   └── [id]/                 # Single product detail view with specs
+    │   ├── sales/                    # Sales Agent Portal
+    │   │   ├── layout.tsx            # Sales agent header, navigation tabs
+    │   │   ├── page.tsx              # Redirection to /sales/dashboard
+    │   │   └── dashboard/            # Sales agent dashboard (invoices, products, accessories)
+    │   ├── services/                 # Installation services catalog
+    │   └── wishlist/                 # Customer saved items
+    ├── components/
+    │   ├── account/                  # OrdersContent, OrderDetails, OrderInvoice
+    │   ├── admin/                    # InvoiceManager, UserTable, CreateUserModal
+    │   │   └── invoices/             # InvoiceManager.tsx (Unified Admin & Sales agent invoicing)
+    │   ├── auth/                     # LoginModal, RegisterModal, GoogleOAuthButton
+    │   ├── features/
+    │   │   ├── cart/                 # CartDrawer, AccessorySelectionPopup
+    │   │   └── particles/            # ParticleBackground animation
+    │   ├── layout/                   # Header, Footer, ClientLayout
+    │   └── ui/                       # Notification, Button, ProductCard, AddToCartButton
+    ├── lib/
+    │   ├── db.ts                     # Neon PostgreSQL client initialization & retry wrapper
+    │   ├── catalog.ts                # Default product/accessory/service catalog seed data
+    │   ├── services/                 # Business logic services
+    │   │   ├── invoiceTemplate.ts    # Unified invoice HTML generator (Zero-VAT standard)
+    │   │   ├── userService.ts        # Database user management operations
+    │   │   └── emailService.ts       # Nodemailer SMTP dispatcher
+    │   ├── stores/                   # Zustand state stores
+    │   │   ├── authStore.ts          # Session, credentials, roles, Google OAuth
+    │   │   ├── cartStore.ts          # Items, accessories, services, order editing
+    │   │   ├── userStore.ts          # User profiles, order updates
+    │   │   └── notificationStore.ts  # Bridge to react-hot-toast notifications
+    │   └── contexts/
+    │       └── ThemeContext.tsx      # Dark / light mode state provider
+    └── types/
+        ├── auth.ts                   # User, Order, Address, Accessory, Service
+        ├── invoice.ts                # Invoice, InvoiceItem, InvoiceFormData
+        └── index.ts                  # CartItem, Product, Common interfaces
+
+================================================================================
+4. DATABASE ARCHITECTURE & PERSISTENCE LAYER (NEON POSTGRESQL + PRISMA)
+================================================================================
+Database Engine:
+  PostgreSQL 18.0 hosted on Neon Serverless (ep-round-hill pooler).
+
+Connection Client Implementation (src/lib/db.ts):
+  - Uses `@neondatabase/serverless` package via `neon(databaseUrl)`.
+  - Connection sanitization: `cleanDatabaseUrl` strips `channel_binding=require`
+    query parameter to prevent protocol negotiation handshake failures.
+  - Fail-safe fallback: If `process.env.DATABASE_URL` is omitted in Vercel or local
+    environments, `src/lib/db.ts` embeds a verified direct connection string so
+    the application never crashes on unconfigured deployments.
+  - Retry Architecture: `executeWithRetry(fn, maxRetries = 3, baseDelayMs = 400)`
+    automatically traps transient network glitches ('fetch failed', 'ECONNRESET',
+    'ETIMEDOUT', 'timeout') and applies exponential backoff.
+
+Database Tables:
+  1. "User" Table:
+     Columns: id (VARCHAR PK), email (UNIQUE), firstName, lastName, avatar,
+     emailVerified, phone, role ("customer" | "sales_agent" | "staff" | "superadmin"),
+     password (bcrypt hashed), createdAt, updatedAt, lastLogin, isActive, permissions.
+
+  2. "Order" Table:
+     Columns: id (SERIAL PK), userId, orderNumber (UNIQUE), items (JSONB),
+     subtotal (NUMERIC), shipping (NUMERIC), tax (NUMERIC), total (NUMERIC),
+     status (VARCHAR), shippingAddress (JSONB), billingAddress (JSONB),
+     paymentMethod (VARCHAR), paymentStatus (VARCHAR), trackingNumber,
+     estimatedDelivery, actualDelivery, notes, createdAt, updatedAt.
+
+  3. "Invoice" Table (Created via scripts/create-invoice-table.js):
+     Columns: id (SERIAL PK), "invoiceNumber" (VARCHAR UNIQUE), "customerName",
+     "customerEmail", "customerPhone", "customerAddress", "issueDate" (DATE),
+     "dueDate" (DATE), "items" (JSONB), "subtotal" (DECIMAL 14,2),
+     "taxRate" (DECIMAL 5,2 DEFAULT 0), "taxAmount" (DECIMAL 14,2 DEFAULT 0),
+     "discount" (DECIMAL 14,2 DEFAULT 0), "total" (DECIMAL 14,2), "status",
+     "paymentMethod", "bankName", "accountName", "accountNumber", "notes",
+     "terms", "createdBy", "creatorName", "creatorEmail", "creatorRole",
+     "createdAt", "updatedAt".
+
+  4. "Address" Table:
+     User saved delivery addresses with coordinates and defaults.
+
+  5. "WishlistItem" Table:
+     Customer bookmarked solar equipment for quick re-ordering.
+
+================================================================================
+5. CORE DOMAIN ENTITIES & DATA MODELS
+================================================================================
+A. User (src/types/auth.ts):
+   {
+     id: string;
+     email: string;
+     firstName: string;
+     lastName: string;
+     avatar?: string;
+     phone?: string;
+     role: 'superadmin' | 'staff' | 'sales_agent' | 'customer';
+     isActive: boolean;
+     permissions?: string[];
+   }
+
+B. CartItem (src/types/index.ts):
+   {
+     id: number;
+     productId?: number;
+     serviceId?: number;
+     title: string;
+     brand?: string;
+     spec?: string;
+     capacity?: string;
+     price: number;
+     purchasePrice?: number;
+     vendorPrice?: number;
+     quantity: number;
+     image: string;
+     warranty?: string;
+     category?: string;
+     inStock: boolean;
+     type?: 'product' | 'accessory' | 'service' | 'custom';
+   }
+
+C. Invoice (src/types/invoice.ts):
+   {
+     id: number | string;
+     invoiceNumber: string;        // E.g. "PAE/INV/20261105-4819"
+     customerName: string;
+     customerEmail?: string;
+     customerPhone?: string;
+     customerAddress?: string;
+     issueDate: string;
+     dueDate?: string;
+     status: 'draft' | 'issued' | 'paid' | 'overdue' | 'cancelled';
+     paymentMethod: string;
+     bankName?: string;
+     accountName?: string;
+     accountNumber?: string;
+     items: InvoiceItem[];
+     subtotal: number;
+     taxRate: number;              // Always 0 in zero-VAT policy
+     taxAmount: number;            // Always 0 in zero-VAT policy
+     discount: number;
+     total: number;                // Calculated: subtotal - discount
+     notes?: string;
+     terms?: string;
+     createdBy: string;
+     creatorName?: string;
+     creatorEmail?: string;
+     creatorRole?: string;
+     createdAt: string;
+     updatedAt: string;
+   }
+
+D. InvoiceItem (src/types/invoice.ts):
+   {
+     id: string;
+     itemId?: number;
+     description: string;
+     quantity: number;
+     unitPrice: number;
+     total: number;                // quantity * unitPrice
+     type?: 'product' | 'accessory' | 'service' | 'custom';
+     image?: string;
+     category?: string;
+   }
+
+================================================================================
+6. STATE MANAGEMENT ARCHITECTURE (ZUSTAND 5)
+================================================================================
+All primary frontend state is orchestrated using Zustand 5 with browser
+`localStorage` persistence.
+
+1. `useAuthStore` (src/lib/stores/authStore.ts):
+   - Key: 'power_afric_auth'
+   - State: user (User | null), isAuthenticated (boolean), loading (boolean).
+   - Methods: login(credentials), register(userData), logout(), checkAuth(),
+     updateUser(partialUser).
+   - Features: Stores active JWT/session and role for instant client-side RBAC.
+
+2. `useCartStore` (src/lib/stores/cartStore.ts):
+   - Key: 'power_afric_cart'
+   - State:
+       items: CartItem[] (Products & Services)
+       accessories: CartItem[] (Installation hardware)
+       editingOrderId: number | null
+       editingOrderNumber: string | null
+       editingOrderBackup: backup cart snapshot
+       editingShippingAddress: any
+       editingPaymentMethod: string | null
+   - Methods:
+       addItem(product, qty)
+       removeItem(id, type)
+       updateQuantity(id, qty, type)
+       addAccessory(acc, qty)
+       removeAccessory(id)
+       updateAccessoryQuantity(id, qty)
+       setService(service, qty)
+       clearCart()
+       startEditingOrder(order)
+       cancelEditingOrder()
+       finishEditingOrder()
+       Calculators: getTotalPrice, getProductTotal, getServiceTotal, getAccessoriesTotal, getGrandTotal.
+
+3. `useNotificationStore` (src/lib/stores/notificationStore.ts):
+   - Global notification dispatcher supporting 'success', 'error', 'warning', 'info'.
+   - Integrated Bridge: Every call to `addNotification(...)` automatically executes
+     `react-hot-toast` (`toast.success`, `toast.error`, etc.), guaranteeing dual
+     visibility on both the floating bottom banner and high-z-index top-right toasts.
+
+4. `useServiceStore` (src/lib/stores/serviceStore.ts):
+   - Caches solar installation service packages (Standard, Premium, Industrial).
+
+5. `useAccessoryStore` (src/lib/stores/accessoryStore.ts):
+   - Caches DC cables, battery racks, breakers, surge protectors, and mounting rails.
+
+6. `useUserProfileStore` (src/lib/stores/userStore.ts):
+   - Key: 'power_afric_user_profile'
+   - Manages live customer order cache, active order updates, and saved addresses.
+
+================================================================================
+7. AUTHENTICATION, AUTHORIZATION & RBAC SYSTEM
+================================================================================
+Supported Roles:
+  1. `superadmin`:
+     - Full operational control over /admin, /sales, and customer views.
+     - Can delete users, assign orders to staff, modify global catalog, and issue invoices.
+  2. `staff`:
+     - Order processing agent assigned to fulfill pending customer orders and updates.
+  3. `sales_agent`:
+     - Access to /sales portal.
+     - Can generate professional invoices, pick catalog items, customize service prices,
+       and monitor client transaction progress.
+  4. `customer`:
+     - Standard public consumer with access to cart, checkout, profile, and orders.
+
+Route Guard Implementation:
+  - Admin Layout (`src/app/admin/layout.tsx`):
+    Validates `isAuthenticated && (user.role === 'superadmin' || user.role === 'staff')`.
+    Redirects unprivileged visitors to root `/` with login trigger.
+  - Sales Layout (`src/app/sales/layout.tsx`):
+    Validates `isAuthenticated && (user.role === 'sales_agent' || user.role === 'superadmin')`.
+  - Customer Checkout Guard:
+    Checks session authentication before allowing order submission; saves cart to
+    localStorage (`checkout_cart`) and opens login modal if unauthenticated.
+
+================================================================================
+8. ROUTING TAXONOMY & SITEMAP (APP ROUTER)
+================================================================================
+Public End-User Routes:
+  - `/`                               -> Main home page (slideshow banners, categories, products)
+  - `/products`                       -> Searchable & filterable solar product catalog
+  - `/products/[id]`                  -> Product technical specification & purchase page
+  - `/accessories`                    -> Installation hardware catalog
+  - `/services`                       -> Solar installation & energy audit service packages
+  - `/cart`                           -> Full 3-phase interactive cart inspection
+  - `/checkout`                       -> Delivery address, payment selection, and final order submit
+  - `/wishlist`                       -> Saved products
+
+Customer Account Routes:
+  - `/account`                        -> Personal profile, contact info, and avatar
+  - `/account?tab=orders`             -> Customer order history, status tracking, printable receipt
+  - `/account?tab=addresses`          -> Shipping address book
+  - `/orders`                         -> Dedicated order status dashboard
+
+Sales Agent Routes:
+  - `/sales`                          -> Redirects to /sales/dashboard
+  - `/sales/dashboard?tab=invoices`   -> Custom invoice generator & agent quotation table
+  - `/sales/dashboard?tab=products`   -> Quick product price lookup & inventory check
+  - `/sales/dashboard?tab=accessories`-> Quick installation materials lookup
+  - `/sales/dashboard?tab=services`   -> Service rate calculator
+  - `/sales/dashboard?tab=profile`    -> Agent password & profile settings
+
+Super Admin Routes:
+  - `/admin/dashboard`                -> Executive financial overview & KPI cards
+  - `/admin/orders`                   -> Unified order & invoice management pipeline
+  - `/admin/invoices`                 -> Full invoice creation modal, list, and PDF generator
+  - `/admin/products`                 -> Inventory CRUD, pricing, stock availability
+  - `/admin/users`                    -> User directory, role assignment, activate/deactivate
+  - `/admin/services`                 -> Service catalog price management
+  - `/admin/analytics`                -> Deep financial & conversion reports
+
+================================================================================
+9. THE 3-PHASE E-COMMERCE ENGINE (PRODUCTS, ACCESSORIES, SERVICES)
+================================================================================
+A core innovation of the Power Afric platform is the strict 3-Phase segregation
+of order items to guarantee crystal-clear invoicing without name-based guessing:
+
+Phase 1: Products (Solar Panels, Inverters, Lithium Batteries)
+  - Identified by `item.type === 'product'` or absence of `serviceId` / `accessoryId`.
+  - Unit pricing includes manufacturer warranty terms.
+
+Phase 2: Accessories (Cables, Breakers, Mounting Rails, Lugs)
+  - Identified by `item.type === 'accessory'` or `item.accessoryId != null`.
+  - Quantified by units (meters, pieces, sets).
+  - Selected via `AccessorySelectionPopup.tsx` modal directly in cart/checkout.
+
+Phase 3: Services (Site Inspection, Installation, Maintenance)
+  - Identified by `item.type === 'service'` or `item.serviceId != null`.
+  - Bound to the primary system installation scope.
+
+Order Editing Workflow:
+  Customers with `pending` orders can click "Edit Order" in their account history.
+  The system saves the current cart, loads the existing order into `useCartStore`,
+  locks the interface into `editingOrderId` mode, and submits changes via `PATCH /api/orders/[id]`.
+
+================================================================================
+10. INVOICE MANAGEMENT & PRINTABLE TEMPLATE SYSTEM (ZERO-VAT MODEL)
+================================================================================
+Shared Component:
+  `src/components/admin/invoices/InvoiceManager.tsx` powers both:
+    1. Super Admin Invoices (`/admin/invoices`)
+    2. Sales Agent Invoices (`/sales/dashboard?tab=invoices`)
+
+Zero-VAT Corporate Policy:
+  - VAT Rate is strictly fixed at 0.00%.
+  - VAT Amount is strictly ₦0.00.
+  - Grand Total = Subtotal - Discount.
+  - The VAT input row and VAT calculation rows are suppressed in the creation modal.
+  - The Summary Breakdown in the printable invoice template completely omits the VAT row.
+
+Printable Invoice Engine (`src/lib/services/invoiceTemplate.ts`):
+  - Function `openPowerAfricInvoice(rawInvoiceOrOrder)`:
+      1. Normalizes data via `normalizeToUnifiedInvoice`.
+      2. Generates dynamic QR code for verification.
+      3. Compiles self-contained HTML document with custom CSS styles.
+      4. Opens high-resolution printable browser window via `window.open`.
+  - Format includes:
+      - Power Afric corporate header with logo and contact information.
+      - Customer billing and delivery metadata.
+      - 3-Phase segregated itemized tables (Products, Accessories, Services).
+      - Invoice Summary table (Products Total, Accessories Total, Services Total, Discount, Grand Total).
+      - Verified GTBank payment details.
+      - Corporate terms and conditions.
+
+================================================================================
+11. USER FEEDBACK & NOTIFICATION SUBSYSTEM (REACT-HOT-TOAST + STORE BRIDGE)
+================================================================================
+Interactive user feedback is mandatory across all user actions.
+
+Implementation Details:
+  - Root Layout Mount (`src/components/layout/ClientLayout.tsx`):
+    `<Toaster position="top-right" reverseOrder={false} toastOptions={{ ... }} />`
+    Configured with `zIndex: 999999` to display over full-screen modals.
+  - Store Bridge (`src/lib/stores/notificationStore.ts`):
+    `addNotification(type, message, duration)` automatically triggers `toast[type](message)`.
+  - Covered User Actions:
+    1. Adding to Cart: Triggers on homepage cards, detail views, AddToCartButton, accessories page.
+    2. Checking Out: Triggers on empty cart alerts, login requirements, order placement, order updates.
+    3. Editing: Triggers on quantity increments (+), decrements (-), item removal, order edit loading.
+    4. Invoices: Triggers on adding items from catalogue, adding custom rows, removing rows,
+       saving invoices, changing invoice status, copying invoice reference links.
+
+================================================================================
+12. UI/UX, THEMING, AND DESIGN SYSTEM (TAILWIND CSS 4 + TSPARTICLES)
+================================================================================
+Color Palette:
+  - Power Afric Navy Blue: `#1a2a8a` / `#15226e`
+  - Eco Green Accent: `#40b553` / `#07a500`
+  - Background Neutral: Light mode `#ffffff` / Dark mode `#0f172a` (Slate-900)
+
+Theming:
+  - Managed by `src/lib/contexts/ThemeContext.tsx`.
+  - Persists preference in `localStorage.getItem('theme')`.
+  - Toggles `.dark` class on root `<html>` element.
+
+Visual Dynamics:
+  - Particle Engine (`src/components/features/particles/ParticleBackground.tsx`):
+    Provides subtle interactive floating solar/energy particles across landing views.
+  - Glassmorphism & Micro-Interactions:
+    Backdrop blurs (`backdrop-blur-md`), smooth shadows (`shadow-sm hover:shadow-xl`),
+    animated transitions (`transition-all duration-300`).
+
+================================================================================
+13. API SPECIFICATION & BACKEND ENDPOINTS
+================================================================================
+Authentication Endpoints:
+  - POST `/api/auth/login`          -> Validates credentials, returns User object & token.
+  - POST `/api/auth/register`       -> Creates new customer account with bcrypt password.
+  - POST `/api/auth/logout`         -> Destroys active session cookie.
+  - GET  `/api/users/profile`       -> Fetches authenticated user profile.
+  - PUT  `/api/users/profile`       -> Updates contact phone, name, and avatar.
+
+Invoice Endpoints:
+  - GET  `/api/invoices`            -> Lists invoices with creator and customer filters.
+  - POST `/api/invoices`            -> Issues new custom invoice with zero-VAT totals.
+  - GET  `/api/invoices/[id]`       -> Retrieves single invoice by numerical ID or invoiceNumber.
+  - PUT  `/api/invoices/[id]`       -> Updates existing invoice details, line items, and status.
+  - DELETE `/api/invoices/[id]`     -> Deletes invoice record.
+
+Order Management Endpoints:
+  - GET  `/api/orders`              -> Fetches customer orders list.
+  - POST `/api/orders`              -> Creates new customer order.
+  - PATCH `/api/orders/[id]`        -> Updates order items and delivery details during edit mode.
+  - GET  `/api/admin/orders`        -> Merged pipeline of customer orders and invoices.
+  - POST `/api/admin/orders/assign` -> Assigns pending order to specific staff member.
+
+Catalog Endpoints:
+  - GET  `/api/products`            -> Returns solar equipment catalog.
+  - GET  `/api/accessories`         -> Returns installation accessories.
+  - GET  `/api/services`            -> Returns installation services.
+
+================================================================================
+14. CRITICAL BUSINESS LOGIC RULES & TAX CALCULATIONS
+================================================================================
+Rule 1: Zero VAT on Invoices
+  - When calculating invoice totals in backend or frontend:
+      `subtotal = SUM(quantity * unitPrice)`
+      `discountAmount = Math.max(0, discount)`
+      `discountedSubtotal = Math.max(0, subtotal - discountAmount)`
+      `taxRate = 0`
+      `taxAmount = 0`
+      `total = discountedSubtotal`
+  - Never add 7.5% or 8% to generated invoices. Storefront products are already VAT-inclusive.
+
+Rule 2: Order Item Idempotency
+  - When line items are added to orders, unique `lineItemId` strings are generated
+    (`product_${timestamp}_${rand}`) to prevent accidental duplicate key merging in React.
+
+Rule 3: Creator Attribution
+  - Every invoice records `createdBy` (user ID), `creatorName`, `creatorEmail`, and `creatorRole`.
+  - When sales agents view the Invoices tab, records are filtered by their `salesAgentId`.
+  - Super admins can view all invoices or filter by creator.
+
+================================================================================
+15. COMMON PITFALLS, SANDBOX CONSTRAINTS & DEVELOPMENT GUIDELINES
+================================================================================
+Guideline 1: Windows Line Endings (CRLF vs LF)
+  - When making string edits in files like `InvoiceManager.tsx`, be mindful that
+    files on Windows may have CRLF (`\r\n`). Single-line string replacements or
+    clean AST edits are strongly preferred to avoid line-break mismatch errors.
+
+Guideline 2: TypeScript Non-Incremental Build Verification
+  - Because `tsconfig.tsbuildinfo` may encounter EPERM write restrictions in some
+    sandboxed environments, always run verification with:
+      `npx tsc --noEmit --incremental false`
+
+Guideline 3: Toast Notification Consistency
+  - When creating any interactive button or mutation (adding to cart, deleting an item,
+    submitting a form), always provide immediate visual feedback using `react-hot-toast`
+    (`toast.success(...)`, `toast.error(...)`, `toast(...)`).
+
+Guideline 4: Database Connection Pool Safeguards
+  - Never remove the `executeWithRetry` wrapper in `src/lib/db.ts`. Serverless
+    database connections can experience transient cold-start latency; the retry
+    wrapper ensures seamless recovery.
+
+================================================================================
+16. ENVIRONMENT VARIABLES & DEPLOYMENT RUNBOOK
+================================================================================
+Required Variables (.env & .env.local):
+  - `DATABASE_URL`:
+    PostgreSQL connection URI.
+    Format: `postgresql://[user]:[password]@[host]/[database]?sslmode=require`
+  - `NEXT_PUBLIC_GA_MEASUREMENT_ID`:
+    Google Analytics 4 measurement ID (e.g., G-XXXXXXXXXX).
+  - `GOOGLE_CLIENT_EMAIL`:
+    Service account email for Google Analytics reporting.
+  - `GOOGLE_PRIVATE_KEY`:
+    Private key for GA reporting API.
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`:
+    SMTP email dispatcher credentials for order confirmation emails.
+
+Production Deployment Scripts (package.json):
+  - Development Server: `npm run dev`
+  - Turbo Development: `npm run dev:turbo`
+  - Production Build: `npm run build`
+  - Production Start: `npm run start`
+  - Linting: `npm run lint`
+
+================================================================================
+END OF TECHNICAL SPECIFICATION - POWER AFRIC STORE
+================================================================================

@@ -1,0 +1,948 @@
+=== 1. src/app/admin/layout.tsx ===
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useAuthStore } from '@/lib/stores/authStore';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import ParticleBackground from '@/components/features/particles/ParticleBackground';
+import {  Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench, Tag, Box, FileText } from 'lucide-react';
+
+interface AdminLayoutProps {
+  children: React.ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+  const { user, isAuthenticated, logout } = useAuthStore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+
+  // Check if user is authorized (superadmin or staff)
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      router.push('/');
+      return;
+    }
+
+    // Check user role
+    if (user.role === 'superadmin' || user.role === 'staff') {
+      setIsAuthorized(true);
+    } else {
+      setIsAuthorized(false);
+      router.push('/');
+    }
+  }, [isAuthenticated, user, router]);
+
+  // Navigation items for admin panel
+  const navItems = [
+    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Invoices', href: '/admin/invoices', icon: FileText },
+    { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
+    { name: 'Products', href: '/admin/products', icon: Package },
+    { name: 'Services', href: '/admin/services', icon: Wrench },
+    { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { name: 'Accessories', href: '/admin/accessories', icon: Package },
+    { name: 'Settings', href: '/admin/settings', icon: Settings },
+  ];
+
+  // Show loading state
+  if (isAuthorized === null) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center bg-white">
+        <div className="relative z-10 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authorization...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show unauthorized state
+  if (isAuthorized === false) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center bg-white">
+        <div className="relative z-10 text-center p-8">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.502 0L4.332 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600 mb-6">
+            You don't have permission to access the admin panel.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative min-h-screen bg-white">
+      {/* Particle Background - Layer 0 */}
+      <div className="fixed inset-0 z-0">
+        <ParticleBackground />
+      </div>
+      
+      {/* Main Content - Layer 10 (above particles) */}
+      <div className="relative z-10">
+        {/* Main Header with Welcome and Store Link */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900">Welcome back, {user?.firstName}!</h1>
+                <p className="text-gray-500 mt-1">Here's your business overview.</p>
+              </div>
+              <Link 
+                href="/" 
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
+              >
+                <Home className="w-4 h-4" />
+                <span className="text-sm font-medium">Back to Store</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Bar */}
+        <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-14">
+              {/* Navigation Links */}
+              <nav className="hidden md:flex items-center space-x-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        isActive 
+                          ? 'text-blue-600 bg-blue-50' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </nav>
+              
+              {/* User Menu */}
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    router.push('/');
+                  }}
+                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Page Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminLayout;
+
+=== 2. src/components/layout/header/Header.tsx ===
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import HeaderSearch from './HeaderSearch';
+import CartDrawer from '@/components/features/cart/CartDrawer';
+import LoginModal from '@/components/auth/LoginModal';
+import RegisterModal from '@/components/auth/RegisterModal';
+import { useCartStore } from '@/lib/stores/cartStore';
+import { useAuthStore } from '@/lib/stores/authStore';
+import { useNotificationStore } from '@/lib/stores/notificationStore';
+import { 
+  ShoppingCart, 
+  User, 
+  LogOut, 
+  Menu, 
+  X,
+  Home,
+  Package,
+  Wrench,
+  Shield,
+  Settings,
+  Heart,
+  MapPin,
+  CreditCard,
+  Phone,
+  Zap
+} from 'lucide-react';
+
+const Header: React.FC = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const pathname = usePathname();
+  const { items, accessories, editingOrderId, editingOrderNumber, cancelEditingOrder } = useCartStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
+
+  const cartItemCount = items.reduce((total, item) => total + item.quantity, 0) +
+                        accessories.reduce((total, item) => total + item.quantity, 0);
+
+  const getUserInitials = () => {
+    if (!user) return '';
+    const firstName = user.firstName || '';
+    const lastName = user.lastName || '';
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsAccountDropdownOpen(false);
+  };
+
+  const handleLoginClick = () => {
+    setIsLoginOpen(true);
+    setIsAccountDropdownOpen(false);
+  };
+
+  const handleRegisterClick = () => {
+    setIsRegisterOpen(true);
+    setIsAccountDropdownOpen(false);
+  };
+
+  const closeAllModals = () => {
+    setIsLoginOpen(false);
+    setIsRegisterOpen(false);
+  };
+
+  const switchToRegister = () => {
+    setIsLoginOpen(false);
+    setIsRegisterOpen(true);
+  };
+
+  const switchToLogin = () => {
+    setIsRegisterOpen(false);
+    setIsLoginOpen(true);
+  };
+
+  const toggleAccountDropdown = () => {
+    setIsAccountDropdownOpen(!isAccountDropdownOpen);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const isSuperAdmin = user?.role === 'superadmin';
+  const isStaff = user?.role === 'staff';
+  const isSalesAgent = user?.role === 'sales_agent';
+  const isAdminUser = isSuperAdmin || isStaff || isSalesAgent;
+
+  const navItems = [
+    { name: 'Home', href: '/', icon: <Home className="w-4 h-4" /> },
+    { name: 'Solar Products', href: '/products', icon: <Package className="w-4 h-4" /> },
+    { name: 'Accessories', href: '/accessories', icon: <Wrench className="w-4 h-4" /> },
+    { name: 'Services', href: '/services', icon: <Settings className="w-4 h-4" /> }
+  ];
+
+  return (
+    <>
+      {/* Top Announcement Bar */}
+      {!isAdminUser && (
+        <div className="bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white py-2 px-4 text-sm font-medium text-center">
+          <div className="max-w-7xl mx-auto flex justify-center items-center">
+            <div className="flex items-center space-x-4">
+              <span className="flex items-center">
+                <Phone className="w-4 h-4 mr-2" />
+                <span>080 3366 6041</span>
+              </span>
+              <span className="hidden sm:inline-flex items-center">
+                <Zap className="w-4 h-4 mr-2" />
+                <span>24/7 Solar Support</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Editing Order Notification Banner */}
+      {editingOrderId && (
+        <div className="bg-[#1a2a8a] text-white py-2 px-4 text-xs sm:text-sm font-medium shadow-inner z-50 relative">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 truncate">
+              <span className="font-bold">✏️ Editing Order #{editingOrderNumber || editingOrderId}</span>
+              <span className="hidden md:inline opacity-90">— Items you add or change will update this pending order.</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/cart"
+                className="px-2.5 py-1 bg-white text-blue-900 rounded font-semibold text-xs hover:bg-blue-50 transition-colors shadow-sm"
+              >
+                View Order Cart
+              </Link>
+              <button
+                onClick={() => {
+                  cancelEditingOrder();
+                  useNotificationStore.getState().addNotification('info', 'Order editing cancelled. Cart reverted.');
+                }}
+                className="px-2.5 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Header */}
+      <header className="sticky top-0 z-40 bg-white dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center shrink-0">
+              <img
+                src="https://res.cloudinary.com/djkudkxmx/image/upload/v1779180201/energy_store_2_ajl0so.png"
+                alt="Power Afric Store"
+                className="h-7 sm:h-8"
+              />
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-1">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive 
+                        ? 'text-[#1a2a8a] dark:text-green-400 border-b-2 border-[#1a2a8a] dark:border-green-400' 
+                        : 'text-gray-700 dark:text-gray-300 hover:text-[#1a2a8a] dark:hover:text-green-400'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                );
+              })}
+              {isAdminUser && (
+                <Link
+                  href={isSuperAdmin ? "/admin/dashboard" : isSalesAgent ? "/sales/dashboard" : "/staff/dashboard"}
+                  className={`ml-2 px-3 py-2 text-sm font-bold rounded-lg text-white flex items-center gap-1.5 ${
+                    isSalesAgent
+                      ? 'bg-gradient-to-r from-amber-600 to-emerald-600'
+                      : 'bg-gradient-to-r from-purple-600 to-blue-600'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  {isSuperAdmin ? 'ADMIN' : isSalesAgent ? 'SALES' : 'STAFF'}
+                </Link>
+              )}
+            </nav>
+
+            {/* Right Side Actions */}
+            <div className="flex items-center space-x-2">
+              <HeaderSearch />
+
+              <div className="hidden md:block">
+                <ThemeToggle />
+              </div>
+
+              {!isAdminUser && (
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                  aria-label="Open cart"
+                >
+                  <ShoppingCart className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                  {cartItemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#1a2a8a] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                      {cartItemCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {/* Account Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={toggleAccountDropdown}
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white font-semibold text-sm hover:scale-105 transition-transform"
+                  aria-label="Account menu"
+                >
+                  {isAuthenticated && user ? (
+                    getUserInitials()
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* Dropdown Menu */}
+                {isAccountDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50">
+                    <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                      {isAuthenticated && user ? (
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#1a2a8a] to-[#40b553] flex items-center justify-center text-white font-bold">
+                            {getUserInitials()}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                              {user.firstName} {user.lastName}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {user.email}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-700 dark:text-gray-300">Account</div>
+                      )}
+                    </div>
+                    <div className="p-1">
+                      {isAuthenticated ? (
+                        <>
+                          {isSalesAgent && (
+                            <Link
+                              href="/sales/dashboard"
+                              className="flex items-center space-x-2 px-3 py-2 text-sm text-amber-600 dark:text-amber-400 font-semibold hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded"
+                              onClick={() => setIsAccountDropdownOpen(false)}
+                            >
+                              <Shield className="w-4 h-4" />
+                              <span>Sales Agent Portal</span>
+                            </Link>
+                          )}
+                          <Link
+                            href="/account"
+                            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            onClick={() => setIsAccountDropdownOpen(false)}
+                          >
+                            <User className="w-4 h-4" />
+                            <span>My Account</span>
+                          </Link>
+                          <Link
+                            href="/account?tab=orders"
+                            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            onClick={() => setIsAccountDropdownOpen(false)}
+                          >
+                            <Package className="w-4 h-4" />
+                            <span>My Orders</span>
+                          </Link>
+                          <Link
+                            href="/account?tab=wishlist"
+                            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            onClick={() => setIsAccountDropdownOpen(false)}
+                          >
+                            <Heart className="w-4 h-4" />
+                            <span>Wishlist</span>
+                          </Link>
+                          <Link
+                            href="/account?tab=addresses"
+                            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            onClick={() => setIsAccountDropdownOpen(false)}
+                          >
+                            <MapPin className="w-4 h-4" />
+                            <span>Addresses</span>
+                          </Link>
+                          <Link
+                            href="/account?tab=payment"
+                            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            onClick={() => setIsAccountDropdownOpen(false)}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            <span>Payment</span>
+                          </Link>
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            <span>Logout</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={handleLoginClick}
+                            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                          >
+                            <User className="w-4 h-4" />
+                            <span>Sign In</span>
+                          </button>
+                          <button
+                            onClick={handleRegisterClick}
+                            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                          >
+                            <User className="w-4 h-4" />
+                            <span>Create Account</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                ) : (
+                  <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="space-y-2">
+                {/* Theme Toggle in Mobile Menu */}
+                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Dark/Light Mode</span>
+                  <ThemeToggle />
+                </div>
+
+                {navItems.map((item) => {
+                  const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive 
+                          ? 'text-[#1a2a8a] dark:text-green-400' 
+                          : 'text-gray-700 dark:text-gray-300 hover:text-[#1a2a8a] dark:hover:text-green-400'
+                      }`}
+                    >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+
+                {isAdminUser && (
+                  <Link
+                    href={isSuperAdmin ? "/admin/dashboard" : isSalesAgent ? "/sales/dashboard" : "/staff/dashboard"}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`block mt-2 px-3 py-2 text-sm font-bold rounded-lg text-white text-center ${
+                      isSalesAgent
+                        ? 'bg-gradient-to-r from-amber-600 to-emerald-600'
+                        : 'bg-gradient-to-r from-purple-600 to-blue-600'
+                    }`}
+                  >
+                    {isSuperAdmin ? 'ADMIN DASHBOARD' : isSalesAgent ? 'SALES AGENT DASHBOARD' : 'STAFF DASHBOARD'}
+                  </Link>
+                )}
+
+                {/* Mobile Account Links */}
+                {isAuthenticated ? (
+                  <>
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                      <Link
+                        href="/account"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                      >
+                        My Account
+                      </Link>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                    <button
+                      onClick={() => {
+                        handleLoginClick();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleRegisterClick();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                    >
+                      Create Account
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <LoginModal isOpen={isLoginOpen} onClose={closeAllModals} onSwitchToRegister={switchToRegister} />
+      <RegisterModal isOpen={isRegisterOpen} onClose={closeAllModals} onSwitchToLogin={switchToLogin} />
+    </>
+  );
+};
+
+export default Header;
+
+=== 3. src/types/index.ts ===
+export interface Product {
+  id: number;
+  title: string;
+  brand: string;
+  spec: string;
+  price: number;
+  purchasePrice?: number;
+  vendorPrice?: number;
+  image: string;
+  category: string;
+  warranty: string;
+  installationTime?: string;
+  capacity?: string;
+  compatibleWith?: string[];
+  features?: string[];
+  inStock: boolean;
+  inventory: number;
+  systemType?: string;
+  isActive?: boolean;
+  updatedAt?: string;
+  createdAt?: string;
+}
+
+export interface CartItem extends Product {
+  quantity: number;
+  type?: 'product' | 'service' | 'accessory';
+  serviceId?: number;
+  accessoryId?: number;
+  productId?: number;
+  unit?: string;
+}
+
+// Add other exports as needed...
+
+=== 4. src/types/auth.ts ===
+// User types - Updated to match our database exactly
+export interface User {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+    emailVerified: boolean;
+    phone?: string;
+    role: 'superadmin' | 'admin' | 'staff' | 'sales_agent' | 'customer';
+    company?: string;
+    location?: string;
+    bio?: string;
+    createdAt: string;
+    updatedAt: string;
+    lastLogin?: string | null;
+    isActive: boolean;
+    permissions?: string[];
+}
+
+// Authentication data types
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+export interface GoogleUser {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string;
+}
+
+// Address types
+export interface Address {
+  id: string;
+  userId: string;
+  type: 'home' | 'work' | 'other';
+  name: string;
+  street: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+  phone?: string;
+  isDefault: boolean;
+}
+
+// Order types
+export interface ProductLine {
+  id?: number;
+  orderId?: number;
+  productId: number;
+  name?: string;
+  title: string;
+  brand?: string;
+  spec?: string;
+  capacity?: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  type: 'product';
+  lineItemId?: string;
+}
+
+export interface AccessoryLine {
+  id?: number;
+  orderId?: number;
+  accessoryId: number;
+  name: string;
+  title?: string;
+  price?: number;
+  unit_price: number;
+  quantity: number;
+  total_price: number;
+  unit?: string;
+  image?: string;
+  type?: 'accessory';
+  sku?: string;
+  category?: string;
+}
+
+export interface ServiceLine {
+  id?: number;
+  orderId?: number;
+  serviceId: number;
+  productId?: number;
+  name: string;
+  title?: string;
+  price: number;
+  quantity: number;
+  type: 'service';
+  image?: string;
+  description?: string;
+  category?: string;
+  lineItemId?: string;
+}
+
+export type OrderLineItem = ProductLine | AccessoryLine | ServiceLine;
+
+export interface OrderItem {
+  id?: number;
+  orderId?: number;
+  productId?: number;
+  serviceId?: number;
+  accessoryId?: number;
+  name?: string;
+  title?: string;
+  brand?: string;
+  spec?: string;
+  capacity?: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  type?: 'product' | 'service' | 'accessory';
+  lineItemId?: string;
+  unit_price?: number;
+  total_price?: number;
+  unit?: string;
+  category?: string;
+}
+
+export interface Order {
+  id: number;
+  userId: string;
+  orderNumber: string;
+  items: OrderItem[];
+  products?: ProductLine[];
+  accessories?: AccessoryLine[];
+  services?: ServiceLine[];
+  productTotal?: number;
+  accessoryTotal?: number;
+  serviceTotal?: number;
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  status: 'saved' | 'pending' | 'confirmed' | 'pending_agent' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  shippingAddress: Address | null;
+  billingAddress: Address | null;
+  paymentMethod: string;
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  trackingNumber?: string | null;
+  estimatedDelivery?: string | null;
+  actualDelivery?: string | null;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  // Service tracking
+  serviceId?: number | null;
+  serviceName?: string | null;
+  servicePrice?: number | string | null;
+  hasService?: boolean;
+}
+
+// Cart types
+export interface CartItem {
+  id: number;
+  productId: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+}
+
+// Wishlist types
+export interface WishlistItem {
+  id: string;
+  productId: number;
+  addedAt: string;
+}
+
+// Authentication data types - keeping both for compatibility
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export type UserProfile = User;
+
+export interface Service {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  costPrice?: number;
+  category?: string;
+  duration?: string;
+  isActive: boolean;
+  image?: string;
+  features?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Accessory {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  costPrice?: number;
+  category?: string;
+  duration?: string;
+  isActive: boolean;
+  image?: string;
+  features?: string[];
+  createdAt: string;
+  sku?: string;
+  unit?: string;
+  stock: number;
+}
+
+=== 5. Directory contents of src/lib/data/ ===
+
+    Directory: C:\Users\Jaynova\power-afric-store\src\lib\data
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----          6/3/2026  11:04 AM           2686 auditService.ts
+-a----         9/22/2026  12:15 PM            541 catalogRequest.ts
+-a----          6/3/2026  11:04 AM           2892 ordersService.ts
+-a----          6/3/2026  11:04 AM            558 productCache.ts
+-a----          6/3/2026  11:04 AM           5182 products.ts
+-a----         9/30/2026   4:01 PM           1572 productsService.ts
+-a----          6/3/2026  11:04 AM            350 users.ts
+-a----          6/3/2026  11:04 AM            681 usersService.ts
+-a----          6/3/2026  11:04 AM           4248 wishlists.ts
+
+=== APPENDIX: Summary of Data Layer Files in src/lib/data/ ===
+
+1. auditService.ts:
+   - Client and server side action logging (`USER_LOGIN`, `USER_LOGOUT`, `CREATE`, `UPDATE`, `DELETE`, `VIEW`, `EXPORT`, `IMPORT`).
+   - Persists logs to localStorage (`power_afric_audit_logs`) and console; capped at 1,000 entries.
+
+2. catalogRequest.ts:
+   - Resilient HTTP helper for catalog API requests with `cache: 'no-store'`.
+   - Never retries mutations automatically to prevent duplicate operations.
+
+3. ordersService.ts:
+   - Order management API client (`/api/orders`).
+   - Handles `createOrder`, `getUserOrders`, `getAllOrders`, `updateOrderStatus`, `confirmAgentOrder`, and generates order numbers `PA-YYYYMMDD-XXXX`.
+
+4. productCache.ts:
+   - In-memory cache for product catalog queries with a 5-minute TTL (`CACHE_DURATION = 300,000ms`).
+
+5. products.ts:
+   - Mock/fallback array of `Product` definitions (`PRODUCTS: Product[]`) covering Kits, Accessories, Inverters, and Batteries with Cloudinary CDN images.
+
+6. productsService.ts:
+   - CRUD service for products communicating with `/api/products` (supports `includeInactive`, status toggle, id fetch, create, update, delete).
+
+7. users.ts:
+   - Core `User` interface representation with roles `'superadmin' | 'staff' | 'customer'`.
+
+8. usersService.ts:
+   - Direct SQL querying utility connecting to Postgres via `@/lib/neon-client` (`sql` tagged template).
+   - Exports `getUsers()`, `findUserByEmail(email)`, and `verifyUserCredentials(email, password)`.
+
+9. wishlists.ts:
+   - In-memory seed collection of customer & staff wishlists (`WISHLISTS: Wishlist[]`).

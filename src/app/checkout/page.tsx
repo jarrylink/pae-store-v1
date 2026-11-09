@@ -294,6 +294,7 @@ export default function CheckoutPage() {
         const selected = savedAddresses.find(a => a.id === formData.selectedAddressId);
         if (!selected) {
           setError('Please select a valid address');
+          addNotification('error', 'Please select a valid shipping address');
           setIsSubmitting(false);
           return;
         }
@@ -301,6 +302,7 @@ export default function CheckoutPage() {
       } else {
         if (!formData.shippingAddress.street && !formData.shippingAddress.city) {
           setError('Please provide a shipping address');
+          addNotification('error', 'Please provide a valid shipping address');
           setIsSubmitting(false);
           return;
         }

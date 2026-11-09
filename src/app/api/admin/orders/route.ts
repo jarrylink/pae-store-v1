@@ -52,9 +52,9 @@ export async function GET() {
       customerEmail: inv.customerEmail || '',
       customerPhone: inv.customerPhone || '',
       shippingAddress: inv.customerAddress ? { street: inv.customerAddress, city: 'Nigeria' } : null,
-      total: Number(inv.total) || 0,
+      total: Math.max(0, (Number(inv.subtotal) || 0) - (Number(inv.discount) || 0)),
       subtotal: Number(inv.subtotal) || 0,
-      taxAmount: Number(inv.taxAmount) || 0,
+      taxAmount: 0,
       discount: Number(inv.discount) || 0,
       status: inv.status, // draft | issued | paid | overdue | cancelled
       createdAt: inv.createdAt,

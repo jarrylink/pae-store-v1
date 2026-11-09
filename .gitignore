@@ -1,4 +1,4 @@
-﻿# dependencies
+# dependencies
 /node_modules
 /.pnp
 .pnp.js
@@ -39,3 +39,5 @@ yarn-error.log*
 *.backup*
 *.corrupted
 *.broken
+scripts/normalize-eol.js
+scripts/test-*.js

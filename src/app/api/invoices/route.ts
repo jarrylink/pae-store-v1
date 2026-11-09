@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { InvoiceItem } from '@/types/invoice';
 
-function calculateInvoiceTotals(items: InvoiceItem[], taxRate: number = 7.5, discount: number = 0) {
+function calculateInvoiceTotals(items: InvoiceItem[], taxRate: number = 0, discount: number = 0) {
   const subtotal = items.reduce((acc, item) => {
     const qty = Number(item.quantity) || 0;
     const price = Number(item.unitPrice) || 0;
@@ -63,7 +63,13 @@ export async function GET(request: NextRequest) {
     queryText += ` ORDER BY "createdAt" DESC, id DESC`;
 
     const invoices = await sql.query(queryText, params);
-    return NextResponse.json(invoices);
+    const sanitizedInvoices = (invoices || []).map((inv: any) => ({
+      ...inv,
+      taxRate: 0,
+      taxAmount: 0,
+      total: Math.max(0, (Number(inv.subtotal) || 0) - (Number(inv.discount) || 0)),
+    }));
+    return NextResponse.json(sanitizedInvoices);
   } catch (error: any) {
     console.error('Error fetching invoices:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch invoices' }, { status: 500 });
@@ -94,7 +100,7 @@ export async function POST(request: NextRequest) {
       total: (Number(item.quantity) || 1) * (Number(item.unitPrice) || 0),
     })) : [];
 
-    const taxRate = body.taxRate !== undefined ? Number(body.taxRate) : 7.5;
+    const taxRate = body.taxRate !== undefined ? Number(body.taxRate) : 0;
     const discount = Number(body.discount) || 0;
     const calculated = calculateInvoiceTotals(items, taxRate, discount);
 

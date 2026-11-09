@@ -8,6 +8,7 @@ import {
   RefreshCw, Users, FileText, ShoppingCart, Printer, ArrowUpRight
 } from 'lucide-react';
 import { openPowerAfricInvoice } from '@/lib/services/invoiceTemplate';
+import { toast } from 'react-hot-toast';
 
 interface Order {
   id: number;
@@ -112,15 +113,16 @@ export default function AdminOrdersPage() {
       const data = await response.json();
       if (data.success) {
         setOrders(prev => prev.map(o => o.id === orderId && !!o.isInvoice === !!isInvoice ? { ...o, status: newStatus } : o));
+        toast.success(`Status updated to "${newStatus}"`);
         if (selectedOrder && selectedOrder.id === orderId && !!selectedOrder.isInvoice === !!isInvoice) {
           setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
         }
       } else {
-        alert('Failed to update: ' + data.error);
+        toast.error('Failed to update: ' + data.error);
       }
     } catch (err) {
       console.error('Error updating status:', err);
-      alert('Error updating status');
+      toast.error('Error updating status');
     } finally {
       setUpdatingStatus(null);
     }
@@ -137,12 +139,13 @@ export default function AdminOrdersPage() {
       const data = await response.json();
       if (data.success) {
         fetchOrders();
+        toast.success('Staff assigned successfully');
       } else {
-        alert('Failed to assign: ' + data.error);
+        toast.error('Failed to assign: ' + data.error);
       }
     } catch (err) {
       console.error('Error assigning order:', err);
-      alert('Error assigning order');
+      toast.error('Error assigning order');
     } finally {
       setAssigningStaff(null);
     }
@@ -650,7 +653,7 @@ export default function AdminOrdersPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Grand Total</p>
-                  <p className="text-base font-bold text-[#1a2a8a] mt-0.5">{formatCurrency(selectedOrder.total)}</p>
+                  <p className="text-base font-bold text-[#1a2a8a] mt-0.5">{formatCurrency(selectedOrder.isInvoice ? Math.max(0, (Number(selectedOrder.subtotal) || 0) - (Number(selectedOrder.discount) || 0)) : selectedOrder.total)}</p>
                 </div>
               </div>
 
@@ -725,7 +728,7 @@ export default function AdminOrdersPage() {
                         <span className="text-rose-600 font-semibold">-{formatCurrency(Number(selectedOrder.discount))}</span>
                       </div>
                     )}
-                    {Number(selectedOrder.taxAmount || 0) > 0 && (
+                    {!selectedOrder.isInvoice && Number(selectedOrder.taxAmount || 0) > 0 && (
                       <div className="flex justify-between text-gray-500">
                         <span>VAT:</span>
                         <span className="font-semibold">{formatCurrency(Number(selectedOrder.taxAmount))}</span>
@@ -733,7 +736,7 @@ export default function AdminOrdersPage() {
                     )}
                     <div className="flex justify-between text-sm font-bold text-gray-900 pt-1 border-t border-gray-100">
                       <span>Total Amount:</span>
-                      <span className="text-[#1a2a8a]">{formatCurrency(selectedOrder.total)}</span>
+                      <span className="text-[#1a2a8a]">{formatCurrency(selectedOrder.isInvoice ? Math.max(0, (Number(selectedOrder.subtotal) || 0) - (Number(selectedOrder.discount) || 0)) : selectedOrder.total)}</span>
                     </div>
                   </div>
                 </div>

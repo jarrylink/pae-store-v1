@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
@@ -103,7 +103,10 @@ export default function Home() {
 
   const handleAddToCart = (productId: number) => { 
     const product = allProducts.find(p => p.id === productId); 
-    if (product) addItem(product); 
+    if (product) {
+      addItem(product);
+      toast.success(`${product.title} added to cart! 🛒`);
+    }
   };
 
   const handleViewDetails = (productId: number) => { 

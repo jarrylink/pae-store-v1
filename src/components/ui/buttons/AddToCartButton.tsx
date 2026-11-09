@@ -1,4 +1,5 @@
-﻿import React from 'react';
+import React from 'react';
+import { toast } from 'react-hot-toast';
 import { useCartStore } from '@/lib/stores/cartStore';
 import Button from './Button';
 import { Product } from '@/types';
@@ -23,6 +24,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const handleAddToCart = () => {
     if (product && !disabled) {
       addItem(product);
+      toast.success(`${product.title || 'Product'} added to cart! 🛒`);
       if (onAdd) {
         onAdd();
       }

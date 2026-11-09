@@ -139,9 +139,10 @@ export function normalizeToUnifiedInvoice(data: any): UnifiedInvoiceData {
 
   const subtotal = data.subtotal != null ? Number(data.subtotal) : (productsTotal + accessoriesTotal + servicesTotal);
   const discount = Number(data.discount || 0);
-  const taxRate = Number(data.taxRate || 0);
-  const taxAmount = Number(data.taxAmount || 0);
-  const grandTotal = Number(data.total ?? data.grandTotal ?? (subtotal - discount + taxAmount));
+  const isInvoiceTabRecord = true;
+  const taxRate = 0;
+  const taxAmount = 0;
+  const grandTotal = Math.max(0, subtotal - discount);
 
   return {
     id: data.id,
@@ -601,7 +602,7 @@ export function generatePowerAfricInvoiceHTML(data: UnifiedInvoiceData, qrCodeUr
                 <td style="padding: 0.35rem 0.5rem; font-weight: 500; color: #dc2626;">Discount</td>
                 <td style="padding: 0.35rem 0.5rem; text-align: right; font-weight: 600; color: #dc2626;">-${formatCurrency(data.discount || 0)}</td>
               </tr>` : ''}
-              ${Number(data.taxAmount || 0) > 0 ? `
+              ${false ? `
               <tr>
                 <td style="padding: 0.35rem 0.5rem; font-weight: 500;">VAT (${data.taxRate || 7.5}%)</td>
                 <td style="padding: 0.35rem 0.5rem; text-align: right; font-weight: 600;">${formatCurrency(data.taxAmount || 0)}</td>

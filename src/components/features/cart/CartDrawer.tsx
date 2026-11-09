@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useUserProfileStore } from '@/lib/stores/userStore';
 import { useServiceStore } from '@/lib/stores/serviceStore';
 import { useNotificationStore } from '@/lib/stores/notificationStore';
+import { toast } from 'react-hot-toast';
 import { formatCurrency } from '@/utils';
 import { Address } from '@/types/auth';
 import { Package } from 'lucide-react';
@@ -64,6 +65,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     } else if (selectedServiceId !== 'none') {
       setSelectedServiceId('none');
       setServiceQuantity(0);
+      toast.success('Installation service removed');
     }
   }, [items.length]);
 
@@ -116,10 +118,12 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
       if (s) {
         setService(s, 1);
         setServiceQuantity(1);
+        toast.success(`Installation service added: ${s.name}`);
       }
     } else {
       setService(null);
       setServiceQuantity(0);
+      toast.success('Installation service removed');
     }
   };
 
@@ -128,6 +132,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
       setService(null);
       setSelectedServiceId('none');
       setServiceQuantity(0);
+      toast.success('Installation service removed');
     } else if (newQuantity <= 10) {
       setServiceQuantity(newQuantity);
       const s = services.find(srv => srv.id.toString() === selectedServiceId) || (serviceItems[0] ? {
@@ -143,6 +148,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
   const handleRemoveAccessory = (accessoryId: number) => {
     removeAccessory(accessoryId);
+    toast.success('Accessory removed from cart');
   };
 
   const handleCheckout = async () => {
@@ -151,6 +157,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     
     if (!isAuthenticated) {
         console.log('🔒 Not authenticated - showing login modal');
+        toast('Please log in to proceed to checkout', { icon: '🔒' });
         setShowLoginModal(true);
         return; // ⚠️ CRITICAL: Stop execution here!
     }
@@ -390,17 +397,17 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded text-sm sm:text-xs">
                           <button
-                            onClick={() => updateQuantity(item.id, Number(item.quantity) - 1)}
+                            onClick={() => { updateQuantity(item.id, Number(item.quantity) - 1); toast.success('Cart updated'); }}
                             className="px-3 py-2 sm:px-2 sm:py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
                             disabled={item.quantity <= 1}
                           >-</button>
                           <span className="px-3 py-2 sm:px-2 sm:py-1 text-gray-900 dark:text-white min-w-[24px] text-center">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.id, Number(item.quantity) + 1)}
+                            onClick={() => { updateQuantity(item.id, Number(item.quantity) + 1); toast.success('Cart updated'); }}
                             className="px-3 py-2 sm:px-2 sm:py-1 hover:bg-gray-200 dark:hover:bg-gray-600"
                           >+</button>
                         </div>
-                        <button onClick={() => removeItem(item.id)} className="text-red-500 text-sm sm:text-xs hover:underline">Remove</button>
+                        <button onClick={() => { removeItem(item.id); toast.success('Product removed from cart'); }} className="text-red-500 text-sm sm:text-xs hover:underline">Remove</button>
                       </div>
                     </div>
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -453,6 +460,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                           onClick={() => {
                             setSelectedServiceId('none');
                             setServiceQuantity(0);
+      toast.success('Installation service removed');
                           }}
                           className="text-red-500 text-sm sm:text-xs hover:underline"
                         >
@@ -570,6 +578,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         isOpen={showAccessoryPopup}
         onClose={() => setShowAccessoryPopup(false)}
         onAddToOrder={(selectedItems) => {
+          toast.success(`Added ${selectedItems.length} accessories to cart! 🛒`);
           selectedItems.forEach((item) => {
             addAccessory({
               id: item.id,
@@ -605,7 +614,8 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         onClose={() => setShowRegisterModal(false)}
         onSwitchToLogin={() => {
           setShowRegisterModal(false);
-          setShowLoginModal(true);
+          toast('Please log in to proceed to checkout', { icon: '🔒' });
+        setShowLoginModal(true);
         }}
       />
     </>

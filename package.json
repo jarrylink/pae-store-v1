@@ -10,6 +10,8 @@
     "dev:turbo": "next dev --turbo"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.114",
+    "@ai-sdk/react": "^4.0.170",
     "@cloudinary/react": "^1.14.4",
     "@cloudinary/url-gen": "^1.22.0",
     "@heroicons/react": "^2.2.0",
@@ -18,6 +20,7 @@
     "@tsparticles/engine": "^3.9.1",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
+    "ai": "^7.0.166",
     "bcrypt": "^6.0.0",
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
@@ -38,6 +41,7 @@
     "react-hot-toast": "^2.6.0",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
+    "zod": "^4.6.7",
     "zustand": "5.0.0"
   },
   "devDependencies": {

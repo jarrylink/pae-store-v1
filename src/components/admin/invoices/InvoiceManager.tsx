@@ -134,7 +134,8 @@ export default function InvoiceManager({ user, mode }: InvoiceManagerProps) {
 
   // Open preview modal
   const openPreview = async (invoice: Invoice) => {
-    setPreviewInvoice(invoice);
+    const cleanInvoice: Invoice = { ...invoice, taxRate: 0, taxAmount: 0, total: Math.max(0, Number(invoice.subtotal || 0) - Number(invoice.discount || 0)) };
+    setPreviewInvoice(cleanInvoice);
     try {
       const qr = await QRCode.toDataURL(invoice.invoiceNumber, { width: 120, margin: 1 });
       setPreviewQrCode(qr);
@@ -145,13 +146,13 @@ export default function InvoiceManager({ user, mode }: InvoiceManagerProps) {
 
   // Calculate statistics
   const totalInvoices = invoices.length;
-  const totalValue = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+  const totalValue = invoices.reduce((sum, inv) => sum + Math.max(0, (Number(inv.subtotal) || 0) - (Number(inv.discount) || 0)), 0);
   const paidValue = invoices
     .filter(inv => inv.status === 'paid')
-    .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+    .reduce((sum, inv) => sum + Math.max(0, (Number(inv.subtotal) || 0) - (Number(inv.discount) || 0)), 0);
   const pendingValue = invoices
     .filter(inv => inv.status === 'draft' || inv.status === 'issued')
-    .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+    .reduce((sum, inv) => sum + Math.max(0, (Number(inv.subtotal) || 0) - (Number(inv.discount) || 0)), 0);
 
   // Unique creators for superadmin filter
   const uniqueCreators = Array.from(
@@ -330,7 +331,7 @@ export default function InvoiceManager({ user, mode }: InvoiceManagerProps) {
                       </div>
                     </td>
                     <td className="px-6 py-4 font-bold text-gray-900">
-                      {formatCurrency(inv.total)}
+                      {formatCurrency(Math.max(0, (Number(inv.subtotal) || 0) - (Number(inv.discount) || 0)))}
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={inv.status} />
@@ -345,7 +346,10 @@ export default function InvoiceManager({ user, mode }: InvoiceManagerProps) {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => openPowerAfricInvoice(inv)}
+                          onClick={() => {
+                            toast('Opening printable invoice window...', { icon: '🖨️' });
+                            openPowerAfricInvoice({ ...inv, taxRate: 0, taxAmount: 0, total: Math.max(0, Number(inv.subtotal || 0) - Number(inv.discount || 0)) });
+                          }}
                           className="p-1.5 hover:bg-gray-100 rounded-lg text-[#40b553] transition-colors"
                           title="Print / Open Invoice Window"
                         >
@@ -355,6 +359,7 @@ export default function InvoiceManager({ user, mode }: InvoiceManagerProps) {
                           onClick={() => {
                             setEditingInvoice(inv);
                             setShowCreateModal(true);
+                            toast(`Editing Invoice #${inv.invoiceNumber}`, { icon: '📝' });
                           }}
                           className="p-1.5 hover:bg-gray-100 rounded-lg text-[#1a2a8a] transition-colors"
                           title="Edit Invoice"
@@ -929,7 +934,7 @@ function InvoiceFormModal({
     initialData?.dueDate ? new Date(initialData.dueDate).toISOString().slice(0, 10) : ''
   );
   const [status, setStatus] = useState<string>(initialData?.status || 'issued');
-  const [taxRate, setTaxRate] = useState<number>(initialData?.taxRate !== undefined ? Number(initialData.taxRate) : 7.5);
+  const [taxRate, setTaxRate] = useState<number>(0);
   const [discount, setDiscount] = useState<number>(initialData?.discount !== undefined ? Number(initialData.discount) : 0);
   const [notes, setNotes] = useState(initialData?.notes || 'Payment is required within specified due date. Thank you for your business!');
   const [terms, setTerms] = useState(initialData?.terms || '• Prices and product availability may change without notice.\n• Orders are processed only after payment confirmation.\n• Warranty applies as per manufacturer terms.');
@@ -952,8 +957,8 @@ function InvoiceFormModal({
   // Recalculate totals
   const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Number(item.unitPrice || 0)), 0);
   const discountedSubtotal = Math.max(0, subtotal - Number(discount || 0));
-  const taxAmount = (discountedSubtotal * Number(taxRate || 0)) / 100;
-  const grandTotal = discountedSubtotal + taxAmount;
+  const taxAmount = 0;
+  const grandTotal = discountedSubtotal;
 
   const handleItemChange = (index: number, field: keyof InvoiceItem, value: any) => {
     setItems(prev => {
@@ -1026,6 +1031,7 @@ function InvoiceFormModal({
       setItems(prev => {
         const updated = [...prev];
         const title = found.title || found.name;
+        toast.success(`Selected "${title}" for line item`);
         const price = Number(found.price || 0);
         const qty = Number(updated[index].quantity) || 1;
         updated[index] = {
@@ -1044,6 +1050,7 @@ function InvoiceFormModal({
   };
 
   const addItemRow = () => {
+    toast.success('Added new line item row');
     setItems(prev => [
       ...prev,
       { id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0, total: 0, type: 'custom' },
@@ -1051,6 +1058,7 @@ function InvoiceFormModal({
   };
 
   const removeItemRow = (index: number) => {
+    toast.success('Line item removed');
     if (items.length <= 1) {
       setItems([{ id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0, total: 0, type: 'custom' }]);
       return;
@@ -1081,7 +1089,8 @@ function InvoiceFormModal({
         issueDate,
         dueDate: dueDate || null,
         status,
-        taxRate,
+        taxRate: 0,
+        taxAmount: 0,
         discount,
         items: validItems,
         bankName,
@@ -1422,7 +1431,7 @@ function InvoiceFormModal({
                 </div>
 
                 <div className="flex items-center justify-between gap-3 text-gray-600">
-                  <span className="text-xs">VAT Rate (%):</span>
+                </div><style>{'.space-y-2 > div:empty { display: none !important; }'}</style><div className="hidden"><span className="text-xs">VAT Rate (%):</span>
                   <input
                     type="number"
                     min="0"
@@ -1434,7 +1443,7 @@ function InvoiceFormModal({
                   />
                 </div>
 
-                <div className="flex justify-between text-gray-600 text-xs">
+                <div className="hidden">
                   <span>VAT Amount:</span>
                   <span>{formatCurrency(taxAmount)}</span>
                 </div>
@@ -1494,11 +1503,12 @@ interface InvoicePreviewModalProps {
 }
 
 function InvoicePreviewModal({ invoice, qrCodeUrl, onClose, onStatusChange }: InvoicePreviewModalProps) {
-  const unifiedData = useMemo(() => normalizeToUnifiedInvoice(invoice), [invoice]);
+  const unifiedData = useMemo(() => normalizeToUnifiedInvoice({ ...invoice, taxRate: 0, taxAmount: 0, total: Math.max(0, Number(invoice.subtotal || 0) - Number(invoice.discount || 0)) }), [invoice]);
   const invoiceHtml = useMemo(() => generatePowerAfricInvoiceHTML(unifiedData, qrCodeUrl), [unifiedData, qrCodeUrl]);
 
   const handlePrint = async () => {
-    await openPowerAfricInvoice(invoice);
+    toast('Opening printable invoice window...', { icon: '🖨️' });
+    await openPowerAfricInvoice({ ...invoice, taxRate: 0, taxAmount: 0, total: Math.max(0, Number(invoice.subtotal || 0) - Number(invoice.discount || 0)) });
   };
 
   const copyRefLink = () => {
