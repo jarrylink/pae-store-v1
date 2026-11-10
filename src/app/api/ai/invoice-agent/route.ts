@@ -111,10 +111,13 @@ CORE ARCHITECTURAL RULES:
               .describe('Array of verified line items to bill'),
             customer: z
               .object({
-                name: z.string().optional(),
-                phone: z.string().optional(),
-                email: z.string().optional(),
-                address: z.string().optional(),
+                name: z.string().optional().describe('Customer or business full name'),
+                firstName: z.string().optional().describe('Customer first name'),
+                lastName: z.string().optional().describe('Customer last name / surname'),
+                fullName: z.string().optional().describe('Customer full name'),
+                phone: z.string().optional().describe('Customer phone number'),
+                email: z.string().optional().describe('Customer email address'),
+                address: z.string().optional().describe('Site or delivery address'),
               })
               .optional()
               .describe('Customer contact and delivery details if supplied'),
@@ -147,6 +150,9 @@ CORE ARCHITECTURAL RULES:
             }>;
             customer?: {
               name?: string;
+              firstName?: string;
+              lastName?: string;
+              fullName?: string;
               phone?: string;
               email?: string;
               address?: string;
@@ -154,12 +160,30 @@ CORE ARCHITECTURAL RULES:
             discount?: number;
             notes?: string;
           }) => {
+            let resolvedCustomer = undefined;
+            if (customer) {
+              const rawName =
+                customer.name ||
+                customer.fullName ||
+                (customer.firstName
+                  ? `${customer.firstName} ${customer.lastName || ''}`.trim()
+                  : '') ||
+                '';
+              const cleanName = rawName === 'undefined' ? '' : rawName;
+              resolvedCustomer = {
+                name: cleanName,
+                phone: customer.phone === 'undefined' ? '' : customer.phone || '',
+                email: customer.email === 'undefined' ? '' : customer.email || '',
+                address: customer.address === 'undefined' ? '' : customer.address || '',
+              };
+            }
+
             return {
               success: true,
               action,
               itemCount: items.length,
               items,
-              customer,
+              customer: resolvedCustomer,
               discount,
               notes,
               timestamp: new Date().toISOString(),

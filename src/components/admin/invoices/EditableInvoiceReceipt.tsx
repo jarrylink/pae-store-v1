@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useInvoiceDraftStore, InvoiceDraftItem } from '@/lib/stores/invoiceDraftStore';
+import {
+  useInvoiceDraftStore,
+  InvoiceDraftItem,
+  getCustomerDisplayName,
+  DEFAULT_CUSTOMER_DISPLAY,
+} from '@/lib/stores/invoiceDraftStore';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useNotificationStore } from '@/lib/stores/notificationStore';
 import { openPowerAfricInvoice } from '@/lib/services/invoiceTemplate';
@@ -25,12 +30,15 @@ import {
   Package,
   Wrench,
   Zap,
+  Copy,
+  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function EditableInvoiceReceipt() {
   const { user } = useAuthStore();
   const { addNotification } = useNotificationStore();
+  const [copiedAccount, setCopiedAccount] = useState(false);
 
   const {
     invoiceNumber,
@@ -77,24 +85,29 @@ export default function EditableInvoiceReceipt() {
 
   const filteredCatalog = searchCatalog(catalogQuery);
 
+  const handleCopyAccount = () => {
+    navigator.clipboard.writeText('0500647850');
+    setCopiedAccount(true);
+    toast.success('Account number copied to clipboard');
+    setTimeout(() => setCopiedAccount(false), 2000);
+  };
+
   const handlePrint = async () => {
-    if (!customer.name.trim()) {
-      toast.error('Please enter a customer name before printing');
-      return;
-    }
     if (items.length === 0) {
       toast.error('Please add at least one line item to print');
       return;
     }
 
+    const customerDisplayName = getCustomerDisplayName(customer);
+
     try {
       const invoiceData = {
         invoiceNumber,
-        customerName: customer.name,
-        customerPhone: customer.phone,
-        customerEmail: customer.email,
-        customerAddress: customer.address,
-        deliveryAddress: customer.address,
+        customerName: customerDisplayName,
+        customerPhone: customer?.phone || '',
+        customerEmail: customer?.email || '',
+        customerAddress: customer?.address || '',
+        deliveryAddress: customer?.address || '',
         issueDate,
         dueDate,
         items: items.map((it) => ({
@@ -127,24 +140,22 @@ export default function EditableInvoiceReceipt() {
   };
 
   const handleSaveInvoice = async () => {
-    if (!customer.name.trim()) {
-      toast.error('Please enter customer name');
-      return;
-    }
     if (items.length === 0) {
       toast.error('Cannot save an empty invoice. Add items first.');
       return;
     }
+
+    const customerDisplayName = getCustomerDisplayName(customer);
 
     setIsSaving(true);
     try {
       const payload = {
         type: 'invoice',
         invoiceNumber,
-        customerName: customer.name,
-        customerEmail: customer.email || null,
-        customerPhone: customer.phone || null,
-        customerAddress: customer.address || null,
+        customerName: customerDisplayName,
+        customerEmail: customer?.email || null,
+        customerPhone: customer?.phone || null,
+        customerAddress: customer?.address || null,
         issueDate,
         dueDate,
         items: items.map((it) => ({
@@ -190,7 +201,7 @@ export default function EditableInvoiceReceipt() {
   };
 
   const handleReset = () => {
-    if (items.length > 0 || customer.name) {
+    if (items.length > 0 || customer?.name) {
       if (window.confirm('Reset this invoice draft? All unsaved lines will be cleared.')) {
         clearDraft();
         toast('Invoice draft reset', { icon: '🔄' });
@@ -268,32 +279,35 @@ export default function EditableInvoiceReceipt() {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-hidden transition-colors">
-      {/* Canvas Top Bar */}
-      <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/80 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <img
-              src="https://res.cloudinary.com/djkudkxmx/image/upload/v1779180201/energy_store_2_ajl0so.png"
-              alt="Power Afric"
-              className="h-6 w-auto"
-            />
-            <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">
-              Live Commercial Invoice Canvas
+      {/* Streamlined Canvas Top Bar */}
+      <div className="px-3.5 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/80 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Invoice
+            </span>
+            <span className="font-mono text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+              {invoiceNumber}
             </span>
           </div>
-          <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-            {invoiceNumber}
-          </span>
-          <span className="text-xs px-2 py-0.5 rounded font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
             DRAFT
           </span>
+
+          <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 pl-2 border-l border-gray-200 dark:border-gray-700">
+            <span>Issue: <strong className="text-gray-700 dark:text-gray-300 font-medium">{issueDate}</strong></span>
+            <span>•</span>
+            <span>Due: <strong className="text-gray-700 dark:text-gray-300 font-medium">{dueDate}</strong></span>
+          </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-650 transition-all shadow-sm"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-650 transition-all shadow-sm"
             title="Reset Draft"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -302,40 +316,40 @@ export default function EditableInvoiceReceipt() {
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-650 transition-all shadow-sm"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-650 transition-all shadow-sm"
           >
             <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Print / PDF</span>
+            <span>Print<span className="hidden sm:inline"> / PDF</span></span>
           </button>
 
           <button
             onClick={handleSaveInvoice}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-sm disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-sm disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>{isSaving ? 'Saving...' : 'Save Invoice'}</span>
+            <span>{isSaving ? 'Saving...' : 'Save'}<span className="hidden sm:inline"> Invoice</span></span>
           </button>
         </div>
       </div>
 
-      {/* Main Sheet Body (Scrollable) */}
-      <div className="p-5 overflow-y-auto flex-1 space-y-6">
+      {/* Main Sheet Body (Scrollable Independently) */}
+      <div className="p-3.5 sm:p-4 overflow-y-auto flex-1 space-y-4 min-h-0">
         {/* Customer & Document Information */}
-        <div className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg border border-gray-200/80 dark:border-gray-700 space-y-3">
+        <div className="bg-gray-50/80 dark:bg-gray-750 p-3.5 rounded-lg border border-gray-200/80 dark:border-gray-700 space-y-2.5">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-2">
             <span className="flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               Customer & Billing Details
             </span>
-            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300 normal-case font-normal">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 normal-case font-normal text-xs">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> Issue:
+                <Calendar className="w-3 h-3 text-gray-400" /> Issue:
                 <input
                   type="date"
                   value={issueDate}
                   onChange={(e) => setDates(e.target.value, dueDate)}
-                  className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs"
+                  className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs font-mono"
                 />
               </span>
               <span className="flex items-center gap-1">
@@ -344,62 +358,62 @@ export default function EditableInvoiceReceipt() {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDates(issueDate, e.target.value)}
-                  className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs"
+                  className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs font-mono"
                 />
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Customer Name <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Customer Name <span className="text-gray-400 font-normal">({!customer?.name ? 'Walk-in Client' : 'Client'})</span>
               </label>
               <input
                 type="text"
-                value={customer.name}
+                value={customer?.name ?? ''}
                 onChange={(e) => setCustomer({ name: e.target.value })}
-                placeholder="e.g. Alhaji Babangida / Solar Corp"
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                placeholder="Walk-in Customer / Client"
+                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-1 focus:ring-blue-500 outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Phone Number
               </label>
               <input
                 type="text"
-                value={customer.phone}
+                value={customer?.phone ?? ''}
                 onChange={(e) => setCustomer({ phone: e.target.value })}
                 placeholder="0803 XXX XXXX"
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-1 focus:ring-blue-500 outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email Address
               </label>
               <input
                 type="email"
-                value={customer.email}
+                value={customer?.email ?? ''}
                 onChange={(e) => setCustomer({ email: e.target.value })}
                 placeholder="client@example.com"
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-1 focus:ring-blue-500 outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Delivery / Site Address
               </label>
               <input
                 type="text"
-                value={customer.address}
+                value={customer?.address ?? ''}
                 onChange={(e) => setCustomer({ address: e.target.value })}
-                placeholder="Plot 14, Gwarinpa, Abuja"
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                placeholder="Site address or location"
+                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-1 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
@@ -424,8 +438,8 @@ export default function EditableInvoiceReceipt() {
             </button>
           </div>
 
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <table className="w-full text-left text-xs">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-xs">
               <thead className="bg-gray-100/80 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 uppercase tracking-wider font-semibold border-b border-gray-200 dark:border-gray-700">
                 <tr>
                   <th className="py-2.5 px-3 w-10 text-center">#</th>
@@ -531,84 +545,112 @@ export default function EditableInvoiceReceipt() {
         </div>
 
         {/* Invoice Summary & Bank Details Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-          {/* Left Column: Notes & Bank Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+          {/* Left Column: Bank Details Boxed Card & Notes */}
           <div className="space-y-3">
+            {/* Clean Compact Boxed Card for Settlement Account */}
+            <div className="p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs border-b border-blue-200/70 dark:border-blue-900/50 pb-1.5">
+                <span className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5 text-[11px]">
+                  <Building className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  Official Bank Settlement Account
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.5 rounded">
+                  Bank Transfer
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] uppercase text-gray-500 dark:text-gray-400 block font-semibold">Bank Name</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">GTBank Plc.</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-gray-500 dark:text-gray-400 block font-semibold">Account Number</span>
+                  <div className="flex items-center gap-1.5 font-mono font-bold text-blue-700 dark:text-blue-300 text-xs">
+                    <span>0500647850</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyAccount}
+                      className="p-0.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title="Copy Account Number"
+                    >
+                      {copiedAccount ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[10px] uppercase text-gray-500 dark:text-gray-400 block font-semibold">Account Name</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 text-xs">Power Afric Energy Serv. LTD</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment & Invoice Notes */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
                 Payment & Invoice Notes
               </label>
               <textarea
-                rows={3}
+                rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add special notes, delivery instructions, or bank details..."
-                className="w-full text-xs p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+                placeholder="Add special notes, delivery instructions, or commercial terms..."
+                className="w-full text-xs p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 outline-none resize-none"
               />
-            </div>
-
-            <div className="p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-xs space-y-1">
-              <div className="font-bold text-blue-900 dark:text-blue-300">
-                Official Payment Account:
-              </div>
-              <div className="text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Bank:</span> GTBank Plc. |{' '}
-                <span className="font-medium">Acc. Number:</span> 0500647850
-              </div>
-              <div className="text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Account Name:</span> Power Afric Energy Serv. LTD
-              </div>
             </div>
           </div>
 
           {/* Right Column: Financial Totals Breakdown */}
-          <div className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg border border-gray-200/80 dark:border-gray-700 space-y-2">
-            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
-              <span>Products Total:</span>
-              <span className="font-medium text-gray-900 dark:text-white">
-                {formatCurrency(productsTotal)}
-              </span>
-            </div>
+          <div className="bg-gray-50 dark:bg-gray-750 p-3.5 rounded-lg border border-gray-200/80 dark:border-gray-700 space-y-2 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                <span>Products Total:</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatCurrency(productsTotal)}
+                </span>
+              </div>
 
-            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
-              <span>Accessories Total:</span>
-              <span className="font-medium text-gray-900 dark:text-white">
-                {formatCurrency(accessoriesTotal)}
-              </span>
-            </div>
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                <span>Accessories Total:</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatCurrency(accessoriesTotal)}
+                </span>
+              </div>
 
-            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
-              <span>Services Total:</span>
-              <span className="font-medium text-gray-900 dark:text-white">
-                {formatCurrency(servicesTotal)}
-              </span>
-            </div>
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                <span>Services Total:</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatCurrency(servicesTotal)}
+                </span>
+              </div>
 
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between text-xs font-semibold text-gray-900 dark:text-white">
-              <span>Subtotal:</span>
-              <span>{formatCurrency(totals.subtotal)}</span>
-            </div>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-1.5 flex justify-between text-xs font-semibold text-gray-900 dark:text-white">
+                <span>Subtotal:</span>
+                <span>{formatCurrency(totals.subtotal)}</span>
+              </div>
 
-            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-              <span>Discount (₦):</span>
-              <div className="flex items-center gap-1">
-                <span>-</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={discount}
-                  onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="w-24 text-right py-0.5 px-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium text-xs focus:ring-1 focus:ring-blue-500 outline-none"
-                />
+              <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                <span>Discount (₦):</span>
+                <div className="flex items-center gap-1">
+                  <span>-</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={discount}
+                    onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-24 text-right py-0.5 px-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>VAT (0% Inclusive):</span>
+                <span className="font-medium">₦0.00</span>
               </div>
             </div>
 
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>VAT (0% Inclusive):</span>
-              <span className="font-medium">₦0.00</span>
-            </div>
-
-            <div className="border-t-2 border-gray-300 dark:border-gray-600 pt-2.5 flex justify-between items-center">
+            <div className="border-t-2 border-gray-300 dark:border-gray-600 pt-2 flex justify-between items-center">
               <span className="text-sm font-bold text-gray-900 dark:text-white">
                 Grand Total:
               </span>

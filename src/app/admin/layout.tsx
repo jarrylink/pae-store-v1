@@ -5,7 +5,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ParticleBackground from '@/components/features/particles/ParticleBackground';
-import {  Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench, Tag, Box, FileText } from 'lucide-react';
+import {  Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench, Tag, Box, FileText, Menu, X } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -16,6 +16,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Check if user is authorized (superadmin or staff)
   useEffect(() => {
@@ -83,39 +84,56 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     );
   }
 
+  const isInvoiceStudio = pathname === '/admin/invoices';
+
   return (
-    <div className="relative min-h-screen bg-white">
+    <div
+      className={`relative ${
+        isInvoiceStudio ? 'h-screen overflow-hidden flex flex-col' : 'min-h-screen'
+      } bg-white dark:bg-gray-900`}
+    >
       {/* Particle Background - Layer 0 */}
       <div className="fixed inset-0 z-0">
         <ParticleBackground />
       </div>
       
       {/* Main Content - Layer 10 (above particles) */}
-      <div className="relative z-10">
-        {/* Main Header with Welcome and Store Link */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Welcome back, {user?.firstName}!</h1>
-                <p className="text-gray-500 mt-1">Here's your business overview.</p>
+      <div className={`relative z-10 ${isInvoiceStudio ? 'flex flex-col h-full overflow-hidden' : ''}`}>
+        {/* Main Header with Welcome and Store Link - hidden on Invoice Studio to preserve vertical space */}
+        {!isInvoiceStudio && (
+          <div className="bg-white border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-2xl font-semibold text-gray-900">Welcome back, {user?.firstName}!</h1>
+                  <p className="text-gray-500 mt-1">Here's your business overview.</p>
+                </div>
+                <Link 
+                  href="/" 
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
+                >
+                  <Home className="w-4 h-4" />
+                  <span className="text-sm font-medium">Back to Store</span>
+                </Link>
               </div>
-              <Link 
-                href="/" 
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
-              >
-                <Home className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Store</span>
-              </Link>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Navigation Bar */}
-        <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+        <div className="sticky top-0 z-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-14">
-              {/* Navigation Links */}
+              {/* Mobile Menu Toggle Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Toggle navigation menu"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+
+              {/* Navigation Links (Desktop) */}
               <nav className="hidden md:flex items-center space-x-1">
                 {navItems.map((item) => {
                   const Icon = item.icon;
@@ -126,8 +144,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       href={item.href}
                       className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                         isActive 
-                          ? 'text-blue-600 bg-blue-50' 
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                          ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-300' 
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -138,19 +156,29 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               </nav>
               
               {/* User Menu */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4">
+                {isInvoiceStudio && (
+                  <Link 
+                    href="/" 
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-all"
+                    title="Return to public store"
+                  >
+                    <Home className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Store</span>
+                  </Link>
+                )}
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate max-w-[120px] sm:max-w-none">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role}</p>
                 </div>
                 <button
                   onClick={() => {
                     logout();
                     router.push('/');
                   }}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
+                  className="px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all flex items-center gap-1.5"
                 >
                   <LogOut className="w-4 h-4" />
                   <span className="hidden sm:inline">Logout</span>
@@ -158,10 +186,41 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               </div>
             </div>
           </div>
+
+          {/* Mobile Drawer Dropdown */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 space-y-1 shadow-lg max-h-[70vh] overflow-y-auto">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                      isActive
+                        ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Page Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div
+          className={
+            isInvoiceStudio
+              ? 'w-full h-[calc(100vh-56px)] px-2 sm:px-4 py-2 overflow-hidden flex flex-col'
+              : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'
+          }
+        >
           {children}
         </div>
       </div>

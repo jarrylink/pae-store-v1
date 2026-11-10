@@ -5,6 +5,23 @@ export interface InvoiceDraftCustomer {
   phone: string;
   email: string;
   address: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+}
+
+export const DEFAULT_CUSTOMER_DISPLAY = 'Walk-in Customer / Client';
+
+export function getCustomerDisplayName(customer?: Partial<InvoiceDraftCustomer> | null): string {
+  if (!customer) return DEFAULT_CUSTOMER_DISPLAY;
+  const rawName =
+    customer.name ||
+    customer.fullName ||
+    (customer.firstName ? `${customer.firstName} ${customer.lastName || ''}`.trim() : '');
+  if (!rawName || rawName === 'undefined' || rawName.trim() === '') {
+    return DEFAULT_CUSTOMER_DISPLAY;
+  }
+  return rawName.trim();
 }
 
 export interface InvoiceDraftItem {
@@ -147,9 +164,30 @@ export const useInvoiceDraftStore = create<InvoiceDraftState>((set, get) => ({
   },
 
   setCustomer: (custUpdates) => {
-    set((state) => ({
-      customer: { ...state.customer, ...custUpdates },
-    }));
+    set((state) => {
+      const prev = state.customer || initialCustomer;
+      const rawName =
+        custUpdates.name ||
+        custUpdates.fullName ||
+        (custUpdates.firstName
+          ? `${custUpdates.firstName} ${custUpdates.lastName || ''}`.trim()
+          : '') ||
+        prev.name ||
+        '';
+
+      const cleanName = rawName === 'undefined' ? '' : rawName;
+
+      return {
+        customer: {
+          ...prev,
+          ...custUpdates,
+          name: cleanName,
+          phone: custUpdates.phone !== undefined ? (custUpdates.phone === 'undefined' ? '' : custUpdates.phone) : (prev.phone || ''),
+          email: custUpdates.email !== undefined ? (custUpdates.email === 'undefined' ? '' : custUpdates.email) : (prev.email || ''),
+          address: custUpdates.address !== undefined ? (custUpdates.address === 'undefined' ? '' : custUpdates.address) : (prev.address || ''),
+        },
+      };
+    });
   },
 
   setDiscount: (discount) => {

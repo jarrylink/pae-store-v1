@@ -154,7 +154,7 @@ export default function InvoiceChatAssistant() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-hidden transition-colors">
       {/* Header */}
-      <div className="px-4 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/80 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/80 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
             <Sparkles className="w-4 h-4" />
@@ -164,9 +164,13 @@ export default function InvoiceChatAssistant() {
               <h2 className="font-bold text-gray-900 dark:text-white text-sm">
                 AI Sales Agent
               </h2>
-              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 Gemini 3.5 Flash Lite
+              </span>
+              <span className="sm:hidden inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Gemini 3.5
               </span>
             </div>
             <p className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -188,7 +192,7 @@ export default function InvoiceChatAssistant() {
       </div>
 
       {/* Messages Stream Area */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+      <div className="flex-1 min-h-0 p-4 overflow-y-auto space-y-4">
         {messages.length === 0 ? (
           <div className="py-8 px-2 text-center space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center border border-blue-100 dark:border-blue-800">
@@ -345,7 +349,7 @@ export default function InvoiceChatAssistant() {
       </div>
 
       {/* Chat Input Bar */}
-      <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/80">
+      <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/80 shrink-0">
         <div className="flex items-center gap-2">
           <input
             type="text"

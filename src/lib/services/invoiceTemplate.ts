@@ -61,7 +61,11 @@ export function normalizeToUnifiedInvoice(data: any): UnifiedInvoiceData {
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   const invoiceNumber = data.invoiceNumber || data.orderNumber || `PAE/INV/${year}${month}${day}-${random}`;
 
-  const customerName = data.customerName || data.shippingAddress?.name || data.user?.firstName ? `${data.user?.firstName} ${data.user?.lastName || ''}`.trim() : 'Walk-in Customer';
+  const customerName =
+    data.customerName ||
+    data.shippingAddress?.name ||
+    (data.user?.firstName ? `${data.user.firstName} ${data.user.lastName || ''}`.trim() : '') ||
+    'Walk-in Customer / Client';
   const customerPhone = data.customerPhone || data.shippingAddress?.phone || data.userPhone || data.phone || 'N/A';
   const customerEmail = data.customerEmail || data.user?.email || '';
 
@@ -445,8 +449,8 @@ export function generatePowerAfricInvoiceHTML(data: UnifiedInvoiceData, qrCodeUr
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.8rem; background: #f8fafc; padding: 0.8rem; border-radius: 8px;">
             <div style="width: 58%;">
               <div style="font-weight: 700; margin-bottom: 0.2rem; font-size: 10.5px; color: #1f2937; text-transform: uppercase; letter-spacing: 0.5px;">Bill To:</div>
-              <div style="font-size: 11.5px; font-weight: 600; color: #111827;">${data.customerName}</div>
-              <div style="font-size: 10px; color: #4b5563;">${data.deliveryAddress}</div>
+              <div style="font-size: 11.5px; font-weight: 600; color: #111827;">${data.customerName || 'Walk-in Customer / Client'}</div>
+              <div style="font-size: 10px; color: #4b5563;">${data.deliveryAddress || data.customerAddress || 'Direct Pickup / On-Site'}</div>
               <div style="font-size: 10px; color: #4b5563;">Phone: ${data.customerPhone || 'N/A'}</div>
               ${data.customerEmail ? `<div style="font-size: 10px; color: #4b5563;">Email: ${data.customerEmail}</div>` : ''}
             </div>
