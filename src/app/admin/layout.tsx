@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ParticleBackground from '@/components/features/particles/ParticleBackground';
-import {  Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench, Tag, Box, FileText, Menu, X } from 'lucide-react';
+import { Home, LogOut, LayoutDashboard, Package, ShoppingCart, Users, BarChart3, Settings, Wrench, Tag, Box, FileText, Menu, X, User, ChevronDown } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -17,6 +17,55 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click or escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        accountDropdownRef.current &&
+        !accountDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+
+    if (isAccountDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAccountDropdownOpen]);
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setIsAccountDropdownOpen(false);
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  const getUserInitials = () => {
+    if (!user) return 'A';
+    if (user.firstName && user.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    if (user.firstName) {
+      return user.firstName[0].toUpperCase();
+    }
+    return 'A';
+  };
 
   // Check if user is authorized (superadmin or staff)
   useEffect(() => {
@@ -155,34 +204,98 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 })}
               </nav>
               
-              {/* User Menu */}
-              <div className="flex items-center gap-2 sm:gap-4">
-                {isInvoiceStudio && (
-                  <Link 
-                    href="/" 
-                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-all"
-                    title="Return to public store"
-                  >
-                    <Home className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Store</span>
-                  </Link>
-                )}
-                <div className="text-right">
-                  <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate max-w-[120px] sm:max-w-none">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role}</p>
-                </div>
+              {/* Account Dropdown Menu */}
+              <div className="relative" ref={accountDropdownRef}>
                 <button
-                  onClick={() => {
-                    logout();
-                    router.push('/');
-                  }}
-                  className="px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all flex items-center gap-1.5"
+                  type="button"
+                  onClick={() => setIsAccountDropdownOpen((prev) => !prev)}
+                  className="flex items-center gap-1.5 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Account menu"
+                  aria-expanded={isAccountDropdownOpen}
+                  aria-haspopup="menu"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Logout</span>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                    {user?.firstName ? getUserInitials() : <User className="w-4 h-4" />}
+                  </div>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 transition-transform duration-200 ${
+                      isAccountDropdownOpen ? 'rotate-180' : ''
+                    }`}
+                  />
                 </button>
+
+                {isAccountDropdownOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                  >
+                    {/* User Profile Header */}
+                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/60">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#1a2a8a] to-[#40b553] text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                          {getUserInitials()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                            {user?.firstName} {user?.lastName}
+                          </p>
+                          {user?.email && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {user.email}
+                            </p>
+                          )}
+                          <div className="mt-1">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                              {user?.role || 'Admin'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Navigation Items */}
+                    <div className="p-1 space-y-0.5">
+                      <Link
+                        href="/"
+                        onClick={() => setIsAccountDropdownOpen(false)}
+                        role="menuitem"
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-lg transition-colors"
+                      >
+                        <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span className="font-medium">Store</span>
+                      </Link>
+
+                      <Link
+                        href="/admin/settings"
+                        onClick={() => setIsAccountDropdownOpen(false)}
+                        role="menuitem"
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-lg transition-colors"
+                      >
+                        <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        <span>Settings</span>
+                      </Link>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+
+                    {/* Logout Action */}
+                    <div className="p-1">
+                      <button
+                        onClick={() => {
+                          setIsAccountDropdownOpen(false);
+                          logout();
+                          router.push('/');
+                        }}
+                        role="menuitem"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left font-medium"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -209,6 +322,28 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   </Link>
                 );
               })}
+
+              <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700 space-y-1">
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                >
+                  <Home className="w-4 h-4" />
+                  <span>Back to Store</span>
+                </Link>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    logout();
+                    router.push('/');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
